@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Net Worth Vault - Official Legal & Documentation Center</title>
+    <style>
+        :root {
+            --primary: #1e3a8a;
+            --primary-light: #eff6ff;
+            --accent: #10b981;
+            --accent-light: #ecfdf5;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --bg: #f1f5f9;
+            --card-bg: #ffffff;
+            --border: #e2e8f0;
+            --danger: #ef4444;
+            --danger-light: #fef2f2;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 24px 16px;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 540px;
+            background: var(--card-bg);
+            border-radius: 28px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+            border: 1px solid var(--border);
+            padding: 36px 24px;
+            position: relative;
+        }
+
+        /* Hub Header */
+        .hub-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .app-icon {
+            width: 68px;
+            height: 68px;
+            background: var(--primary-light);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 16px;
+            font-size: 32px;
+            box-shadow: inset 0 0 0 1px rgba(30, 58, 138, 0.1);
+        }
+
+        .app-title {
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .app-subtitle {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.5;
+            max-width: 380px;
+            margin: 0 auto;
+        }
+
+        /* Navigation Cards */
+        .cards-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .nav-card {
+            background: #ffffff;
+            border: 1.5px solid var(--border);
+            border-radius: 20px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            text-decoration: none;
+            color: inherit;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .nav-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 6px 16px rgba(30, 58, 138, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .card-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding-right: 12px;
+        }
+
+        .card-header-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-icon {
+            font-size: 20px;
+        }
+
+        .card-title {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .card-desc {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.4;
+            margin-left: 28px;
+        }
+
+        .card-arrow {
+            font-size: 20px;
+            color: #3b82f6;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        /* Sub-Page Content View */
+        .page-view {
+            display: none;
+        }
+
+        .page-view.active {
+            display: block;
+        }
+
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-main);
+            cursor: pointer;
+            margin-bottom: 20px;
+            transition: background 0.2s;
+        }
+
+        .back-btn:hover {
+            background: #e2e8f0;
+        }
+
+        .doc-content h2 {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text-main);
+            margin-top: 24px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 6px;
+        }
+
+        .doc-content h3 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #1e40af;
+            margin-top: 18px;
+            margin-bottom: 6px;
+        }
+
+        .doc-content p, .doc-content li {
+            font-size: 14px;
+            color: #334155;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+
+        .doc-content ul {
+            padding-left: 20px;
+            margin-bottom: 16px;
+        }
+
+        .highlight-badge {
+            display: inline-block;
+            background: var(--accent-light);
+            color: #065f46;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
+
+        .info-box {
+            background: var(--primary-light);
+            border-left: 4px solid var(--primary);
+            padding: 14px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #1e3a8a;
+            margin: 16px 0;
+            line-height: 1.5;
+        }
+
+        .danger-box {
+            background: var(--danger-light);
+            border-left: 4px solid var(--danger);
+            padding: 14px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #991b1b;
+            margin: 16px 0;
+            line-height: 1.5;
+        }
+
+        /* Footer */
+        .footer {
+            border-top: 1px solid var(--border);
+            padding-top: 24px;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .footer strong {
+            color: var(--text-main);
+        }
+
+        .footer a {
+            color: #2563eb;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+
+    <!-- ================= 1. MAIN HUB VIEW ================= -->
+    <div id="view-hub" class="page-view active">
+        <div class="hub-header">
+            <div class="app-icon">💰</div>
+            <h1 class="app-title">Net Worth Vault</h1>
+            <p class="app-subtitle">Official Legal, Policy & Google Play Documentation Center</p>
+        </div>
+
+        <div class="cards-list">
+            <!-- Privacy Policy Card -->
+            <div class="nav-card" onclick="openPage('view-privacy')">
+                <div class="card-content">
+                    <div class="card-header-row">
+                        <span class="card-icon">🛡️</span>
+                        <span class="card-title">Privacy Policy</span>
+                    </div>
+                    <p class="card-desc">100% offline data storage, zero cloud tracking & user data protection.</p>
+                </div>
+                <span class="card-arrow">➔</span>
+            </div>
+
+            <!-- Terms & Conditions Card -->
+            <div class="nav-card" onclick="openPage('view-terms')">
+                <div class="card-content">
+                    <div class="card-header-row">
+                        <span class="card-icon">📜</span>
+                        <span class="card-title">Terms & Conditions</span>
+                    </div>
+                    <p class="card-desc">End user terms, financial disclaimer & self-custody ledger agreement.</p>
+                </div>
+                <span class="card-arrow">➔</span>
+            </div>
+
+            <!-- Account & Data Deletion Card -->
+            <div class="nav-card" onclick="openPage('view-deletion')">
+                <div class="card-content">
+                    <div class="card-header-row">
+                        <span class="card-icon">🗑️</span>
+                        <span class="card-title">Account & Data Deletion</span>
+                    </div>
+                    <p class="card-desc">Step-by-step guide to wiping local databases or resetting credentials.</p>
+                </div>
+                <span class="card-arrow">➔</span>
+            </div>
+        </div>
+
+        <div class="footer">
+            Developer: <strong>Azaz Madkiya</strong> • Support: <a href="mailto:azazmadkiya@gmail.com">azazmadkiya@gmail.com</a>
+        </div>
+    </div>
+
+
+    <!-- ================= 2. PRIVACY POLICY VIEW ================= -->
+    <div id="view-privacy" class="page-view doc-content">
+        <button class="back-btn" onclick="openPage('view-hub')">← Back to Legal Center</button>
+
+        <span class="highlight-badge">🔒 100% On-Device Privacy</span>
+        <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 4px;">Privacy Policy</h1>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">Effective Date: August 24, 2026 | App: Net Worth Vault</p>
+
+        <div class="info-box">
+            <strong>Key Commitment:</strong> Net Worth Vault operates on a <strong>100% offline, zero-tracking model</strong>. We do not collect, transmit, monetize, sell, or share your financial numbers or bank balances with remote cloud servers or third parties.
+        </div>
+
+        <h2>1. Information Handled by the App</h2>
+        <p>All records you enter remain strictly inside your device's private SQLite application sandbox:</p>
+        <ul>
+            <li><strong>Financial Accounts:</strong> Bank accounts, cash holdings, stocks, mutual funds, gold, and liabilities.</li>
+            <li><strong>Family Profiles:</strong> Allocations categorized under Self, Father, Mother, or Family Joint.</li>
+            <li><strong>Ledger Entries:</strong> Double-entry bookkeeping transactions, income deposits, and expense records.</li>
+            <li><strong>Vault Passcode:</strong> Stored and verified locally using one-way cryptographic hashing.</li>
+        </ul>
+
+        <h2>2. Storage & Security Architecture</h2>
+        <p>Your financial numbers are saved in a local SQLite / Room database. There are no remote user databases, tracking APIs, or cloud sync servers.</p>
+
+        <h2>3. Third-Party Trackers & Advertising</h2>
+        <ul>
+            <li><strong>No Analytics SDKs:</strong> No Google Analytics, Mixpanel, or telemetry trackers.</li>
+            <li><strong>No Advertising:</strong> No ads, interstitial popups, or Advertising ID (AD_ID) collection.</li>
+            <li><strong>Zero Data Sharing:</strong> Your financial data is never shared with third-party brokers.</li>
+        </ul>
+
+        <h2>4. Device Permissions</h2>
+        <p><strong>Storage / File Access:</strong> Requested strictly when you choose to export or import your personal JSON backup files via Android's Storage Access Framework.</p>
+
+        <h2>5. Contact & Support</h2>
+        <p>For questions or verification regarding this policy, contact developer <strong>Azaz Madkiya</strong> at <a href="mailto:azazmadkiya@gmail.com">azazmadkiya@gmail.com</a>.</p>
+    </div>
+
+
+    <!-- ================= 3. TERMS & CONDITIONS VIEW ================= -->
+    <div id="view-terms" class="page-view doc-content">
+        <button class="back-btn" onclick="openPage('view-hub')">← Back to Legal Center</button>
+
+        <span class="highlight-badge" style="background:#dbeafe; color:#1e40af; border-color:#93c5fd;">⚖️ Legal Agreement</span>
+        <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 4px;">Terms & Conditions</h1>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">Effective Date: August 24, 2026</p>
+
+        <div class="info-box">
+            <strong>Financial Disclaimer:</strong> Net Worth Vault is a self-custody personal bookkeeping utility. Calculations and metrics do not constitute professional investment, wealth management, or tax advice.
+        </div>
+
+        <h2>1. Acceptance of Terms</h2>
+        <p>By downloading or using Net Worth Vault, you agree to these Terms. If you do not agree, please uninstall the application.</p>
+
+        <h2>2. Self-Custody & Backup Responsibility</h2>
+        <p>Because the app does not maintain your records on cloud servers, <strong>you are solely responsible for creating regular offline JSON backups</strong> via the in-app backup utility and storing them safely.</p>
+
+        <h2>3. Intellectual Property</h2>
+        <p>All software code, graphic designs, interfaces, and algorithms are the property of developer Azaz Madkiya.</p>
+
+        <h2>4. Limitation of Liability</h2>
+        <p>To the maximum extent permitted by applicable law, the developer is not liable for any calculation discrepancies resulting from user manual data entry errors or device loss.</p>
+    </div>
+
+
+    <!-- ================= 4. ACCOUNT & DATA DELETION VIEW ================= -->
+    <div id="view-deletion" class="page-view doc-content">
+        <button class="back-btn" onclick="openPage('view-hub')">← Back to Legal Center</button>
+
+        <span class="highlight-badge" style="background:var(--danger-light); color:#991b1b; border-color:#fca5a5;">🗑️ Google Play Compliant</span>
+        <h1 style="font-size: 24px; font-weight: 800; margin-bottom: 4px;">Account & Data Deletion</h1>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">Right to Erasure & Data Deletion Instructions</p>
+
+        <div class="danger-box">
+            <strong>Immediate Local Erasure:</strong> Net Worth Vault does not host user accounts on remote cloud servers. You have complete control over all data on your device.
+        </div>
+
+        <h2>How to Delete Your Data</h2>
+        <h3>Method 1: Instant In-App Reset (Recommended)</h3>
+        <ol style="padding-left: 20px; line-height: 1.8; font-size: 14px; color: #334155; margin-bottom: 16px;">
+            <li>Open <strong>Net Worth Vault</strong> on your Android phone.</li>
+            <li>Tap on the <strong>Settings</strong> tab at the bottom right.</li>
+            <li>Scroll down to the <strong>Danger Zone: Data Erasure & Reset</strong> card.</li>
+            <li>Tap <strong>"Delete All Financial Data & Reset App"</strong>.</li>
+            <li>Confirm the prompt. All assets, bank records, ledger history, and security credentials will be permanently wiped.</li>
+        </ol>
+
+        <h3>Method 2: Uninstall the Application</h3>
+        <p>Uninstalling the application from your Android device immediately deletes the entire local SQLite database sandbox.</p>
+
+        <h2>Assistance & Inquiries</h2>
+        <p>If you have any questions regarding data erasure, contact <a href="mailto:azazmadkiya@gmail.com">azazmadkiya@gmail.com</a>.</p>
+    </div>
+
+</div>
+
+<script>
+    function openPage(pageId) {
+        document.querySelectorAll('.page-view').forEach(view => {
+            view.classList.remove('active');
+        });
+        const target = document.getElementById(pageId);
+        if (target) {
+            target.classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    }
+</script>
+
+</body>
+</html>
