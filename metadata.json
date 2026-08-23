@@ -1,0 +1,6 @@
+{
+  "name": "Net Worth Tracker",
+  "description": "Offline Net Worth & Portfolio Manager for Self, Father & Mother across Bank, Share Market, and Investments.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

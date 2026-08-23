@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Outer Shield / Vault -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M54,24 L80,34 V52 C80,68 69,80 54,84 C39,80 28,68 28,52 V34 Z"
+        android:strokeWidth="2"
+        android:strokeColor="#34D399" />
+    <!-- Rising Trend / Growth Chart Inside -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M38,62 L48,52 L56,58 L70,42"
+        android:strokeWidth="3.5"
+        android:strokeColor="#F59E0B"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- Arrow Head -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M64,42 L70,42 L70,48 Z" />
+</vector>
