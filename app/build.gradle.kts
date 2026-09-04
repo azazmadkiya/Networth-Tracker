@@ -60,7 +60,6 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.security.crypto)
-    implementation("androidx.profileinstaller:profileinstaller:1.4.1")
 
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
