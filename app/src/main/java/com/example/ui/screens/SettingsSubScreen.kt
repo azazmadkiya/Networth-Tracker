@@ -5,5 +5,7 @@ enum class SettingsSubScreen {
     PRIVACY_POLICY,
     TERMS_OF_SERVICE,
     DATA_SAFETY,
+    PLAY_COMPLIANCE,
+    OPEN_SOURCE_LICENSES,
     ABOUT
 }

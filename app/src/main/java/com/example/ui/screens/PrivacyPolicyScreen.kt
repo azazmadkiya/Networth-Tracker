@@ -2,15 +2,26 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Policy
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -21,9 +32,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.ui.theme.PrimaryGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,27 +64,131 @@ fun PrivacyPolicyScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
+            // Header card
             Card(
+                modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                colors = CardDefaults.cardColors(containerColor = PrimaryGreen.copy(alpha = 0.1f))
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "100% On-Device Privacy",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Policy,
+                        contentDescription = null,
+                        tint = PrimaryGreen,
+                        modifier = Modifier.size(36.dp)
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Net Worth Tracker respects your privacy completely. All of your financial entries, reminder schedules, ledger balances, and assets remain stored exclusively on your device's local Room SQLite database.\n\n" +
-                                "• No Tracking or Telemetry: We do not log, upload, or monetize your financial portfolios.\n" +
-                                "• No Cloud Sync Requirement: You have complete sovereignty over your data.\n" +
-                                "• Export Anytime: You can export your data at any time via an unencrypted JSON file for your personal records.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
-                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column {
+                        Text(
+                            text = "Privacy Policy & Transparency",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryGreen
+                        )
+                        Text(
+                            text = "Last Updated: September 2026 • 100% Offline-First",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            PolicyCard(
+                icon = Icons.Default.Storage,
+                title = "1. Local Database & Data Sovereignty",
+                content = "Net Worth Tracker is engineered with an offline-first architecture. All user data—including bank accounts, investment assets, real estate holdings, gold valuations, liabilities, EMIs, income and expense entries, and reminder notifications—is stored locally in a private Room SQLite database on your device.\n\n" +
+                        "• No Remote Server Storage: We operate no remote databases or cloud servers that sync or receive your financial details.\n" +
+                        "• No Account Telemetry: No analytics platforms, tracking cookies, or user identifiers are collected."
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            PolicyCard(
+                icon = Icons.Default.Mic,
+                title = "2. Microphone & Voice Assistant (RECORD_AUDIO)",
+                content = "When you tap the Voice Control icon, the application requests the RECORD_AUDIO permission to capture verbal instructions (such as adding reminders, bank accounts, or financial transactions):\n\n" +
+                        "• Ephemeral Processing: Audio streams are processed strictly in real-time by the Android SpeechRecognizer service on your device.\n" +
+                        "• No Audio File Retention: No audio recordings, audio clips, or voice samples are saved, cached on disk, or transferred to any remote servers.\n" +
+                        "• User-Initiated Only: Microphone recording operates only when the voice dialog is actively open on screen."
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            PolicyCard(
+                icon = Icons.Default.Fingerprint,
+                title = "3. Biometric Authentication (Fingerprint & Face)",
+                content = "The application supports biometric authentication via the AndroidX BiometricPrompt API (USE_BIOMETRIC and USE_FINGERPRINT):\n\n" +
+                        "• Hardware Module Enclave: Biometric checks are executed entirely by your device's secure hardware enclave (TEE/Secure Element).\n" +
+                        "• Zero App Access: The application never sees, collects, transmits, or stores your fingerprint or facial geometry data.\n" +
+                        "• Optional Security: Biometric authentication can be enabled or disabled at any time in Settings."
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            PolicyCard(
+                icon = Icons.Default.Share,
+                title = "4. User-Directed Financial Sharing",
+                content = "The application allows you to share individual transaction receipts, income/expense entries, and ledger statements via WhatsApp, SMS, Email, or other communication apps:\n\n" +
+                        "• 100% User Controlled: Sharing occurs strictly through the standard Android Share Sheet upon your explicit click.\n" +
+                        "• No Third-Party Intermediaries: No third-party servers capture or intermediate shared messages."
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            PolicyCard(
+                icon = Icons.Default.Security,
+                title = "5. Encryption & Data Security",
+                content = "App credentials, profile selections, and biometric flags are protected using AndroidX Security Crypto (EncryptedSharedPreferences) backed by the Android Keystore system. Data is isolated within the Android application sandbox."
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            PolicyCard(
+                icon = Icons.Default.DeleteForever,
+                title = "6. Data Deletion & Right to Erasure",
+                content = "You have full autonomy over your data. You can instantly erase all database records, snapshots, reminders, and reset your credentials by tapping 'Wipe All Financial Data' in the Settings screen. Once confirmed, all local database tables are purged immediately."
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            PolicyCard(
+                icon = Icons.Default.Policy,
+                title = "7. Children's Privacy & COPPA",
+                content = "Net Worth Tracker is designed for general audiences and personal financial bookkeeping. The application does not knowingly collect, store, or solicit personal information from children under 13 years of age."
+            )
+        }
+    }
+}
+
+@Composable
+fun PolicyCard(
+    icon: ImageVector,
+    title: String,
+    content: String
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(icon, contentDescription = null, tint = PrimaryGreen, modifier = Modifier.size(24.dp))
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = content,
+                style = MaterialTheme.typography.bodyMedium,
+                lineHeight = MaterialTheme.typography.bodyLarge.lineHeight
+            )
         }
     }
 }

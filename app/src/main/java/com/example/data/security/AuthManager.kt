@@ -7,39 +7,55 @@ class AuthManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("auth_prefs", Context.MODE_PRIVATE)
 
     companion object {
-        const val DEFAULT_USER_ID = "Azazmadkiya"
-        const val DEFAULT_PASSWORD = "96877093150"
         private const val KEY_USER_ID = "stored_user_id"
         private const val KEY_PASSWORD = "stored_password"
         private const val KEY_IS_LOGGED_IN = "is_logged_in"
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
+        private const val KEY_HAS_ACCOUNT = "has_account"
     }
 
-    init {
-        if (!prefs.contains(KEY_USER_ID)) {
-            prefs.edit()
-                .putString(KEY_USER_ID, DEFAULT_USER_ID)
-                .putString(KEY_PASSWORD, DEFAULT_PASSWORD)
-                .putBoolean(KEY_IS_LOGGED_IN, true)
-                .apply()
-        }
+    fun hasAccount(): Boolean {
+        val hasFlag = prefs.getBoolean(KEY_HAS_ACCOUNT, false)
+        val hasId = !prefs.getString(KEY_USER_ID, null).isNullOrBlank()
+        val hasPass = !prefs.getString(KEY_PASSWORD, null).isNullOrBlank()
+        return hasFlag || (hasId && hasPass)
     }
 
     fun getStoredUserId(): String {
-        return prefs.getString(KEY_USER_ID, DEFAULT_USER_ID) ?: DEFAULT_USER_ID
+        return prefs.getString(KEY_USER_ID, "") ?: ""
     }
 
     fun isLoggedIn(): Boolean {
-        return prefs.getBoolean(KEY_IS_LOGGED_IN, true)
+        return prefs.getBoolean(KEY_IS_LOGGED_IN, false)
     }
 
     fun setLoggedIn(loggedIn: Boolean) {
         prefs.edit().putBoolean(KEY_IS_LOGGED_IN, loggedIn).apply()
     }
 
+    fun registerUser(idInput: String, passwordInput: String): Boolean {
+        val trimmedId = idInput.trim()
+        val trimmedPass = passwordInput.trim()
+        if (trimmedId.isEmpty() || trimmedPass.isEmpty()) {
+            return false
+        }
+        prefs.edit()
+            .putString(KEY_USER_ID, trimmedId)
+            .putString(KEY_PASSWORD, trimmedPass)
+            .putBoolean(KEY_HAS_ACCOUNT, true)
+            .putBoolean(KEY_IS_LOGGED_IN, true)
+            .apply()
+        return true
+    }
+
     fun validateLogin(idInput: String, passwordInput: String): Boolean {
         val storedId = getStoredUserId()
-        val storedPass = prefs.getString(KEY_PASSWORD, DEFAULT_PASSWORD) ?: DEFAULT_PASSWORD
+        val storedPass = prefs.getString(KEY_PASSWORD, "") ?: ""
+
+        if (storedId.isBlank() || storedPass.isBlank()) {
+            return false
+        }
+
         val idMatches = idInput.trim().equals(storedId.trim(), ignoreCase = true)
         val passMatches = passwordInput.trim() == storedPass.trim()
 
@@ -51,14 +67,7 @@ class AuthManager(context: Context) {
     }
 
     fun updatePassword(newPassword: String) {
-        prefs.edit().putString(KEY_PASSWORD, newPassword).apply()
-    }
-
-    fun resetToDefaultCredentials() {
-        prefs.edit()
-            .putString(KEY_USER_ID, DEFAULT_USER_ID)
-            .putString(KEY_PASSWORD, DEFAULT_PASSWORD)
-            .apply()
+        prefs.edit().putString(KEY_PASSWORD, newPassword.trim()).apply()
     }
 
     fun logout() {

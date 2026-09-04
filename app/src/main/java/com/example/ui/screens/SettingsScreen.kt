@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,8 +23,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
@@ -34,6 +38,7 @@ import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -42,6 +47,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -51,10 +58,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.data.security.BiometricAuthHelper
+import com.example.data.security.BiometricStatus
+import com.example.data.security.findFragmentActivity
 import com.example.ui.components.VoiceAssistantDialog
 import com.example.ui.theme.LiabilityRed
 import com.example.ui.theme.PrimaryGreen
@@ -67,6 +78,38 @@ fun SettingsScreen(
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
+    val fragmentActivity = remember(context) { context.findFragmentActivity() }
+    val biometricStatus = remember(context) { BiometricAuthHelper.getBiometricStatus(context) }
+    var isBiometricEnabled by remember { mutableStateOf(viewModel.authManager.isBiometricEnabled()) }
+
+    val verifyBiometrics = { onVerified: () -> Unit ->
+        if (fragmentActivity != null && biometricStatus == BiometricStatus.READY) {
+            BiometricAuthHelper.authenticate(
+                activity = fragmentActivity,
+                title = "Verify Biometric Identity",
+                subtitle = "Touch fingerprint sensor or look at camera",
+                description = "Confirm authorization to protect local financial database",
+                negativeButtonText = "Cancel",
+                onSuccess = {
+                    onVerified()
+                },
+                onError = { code, err ->
+                    if (code != BiometricPrompt.ERROR_USER_CANCELED && code != BiometricPrompt.ERROR_NEGATIVE_BUTTON) {
+                        Toast.makeText(context, "Biometric: $err", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onFailed = {
+                    Toast.makeText(context, "Biometric not recognized. Please try again.", Toast.LENGTH_SHORT).show()
+                }
+            )
+        } else if (biometricStatus == BiometricStatus.NOT_ENROLLED) {
+            Toast.makeText(context, "No biometrics registered on device. Opening security settings...", Toast.LENGTH_SHORT).show()
+            BiometricAuthHelper.openBiometricSettings(context)
+        } else {
+            Toast.makeText(context, "Biometric hardware unavailable on this device", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     var showPasswordDialog by remember { mutableStateOf(false) }
     var newPassword by remember { mutableStateOf("") }
 
@@ -218,7 +261,7 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Default.Person,
                     title = "User ID",
-                    subtitle = viewModel.authManager.getStoredUserId(),
+                    subtitle = viewModel.authManager.getStoredUserId().ifEmpty { "Not Set" },
                     onClick = {}
                 )
 
@@ -227,6 +270,56 @@ fun SettingsScreen(
                     title = "Change Password",
                     subtitle = "Update local access passkey",
                     onClick = { showPasswordDialog = true }
+                )
+
+                SettingsToggleRow(
+                    icon = Icons.Default.Fingerprint,
+                    title = "Biometric Lock (Fingerprint / Face)",
+                    subtitle = if (isBiometricEnabled) "Securing local database on startup" else biometricStatus.description,
+                    checked = isBiometricEnabled,
+                    onCheckedChange = { enable ->
+                        if (enable) {
+                            verifyBiometrics {
+                                viewModel.authManager.setBiometricEnabled(true)
+                                isBiometricEnabled = true
+                                Toast.makeText(context, "Biometric authentication activated for database security", Toast.LENGTH_SHORT).show()
+                            }
+                        } else {
+                            viewModel.authManager.setBiometricEnabled(false)
+                            isBiometricEnabled = false
+                            Toast.makeText(context, "Biometric unlock disabled", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                )
+
+                if (biometricStatus == BiometricStatus.READY) {
+                    SettingsRow(
+                        icon = Icons.Default.Security,
+                        title = "Test Biometric Sensor",
+                        subtitle = "Verify fingerprint or face scanner",
+                        onClick = {
+                            verifyBiometrics {
+                                Toast.makeText(context, "Biometric verification successful!", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    )
+                } else if (biometricStatus == BiometricStatus.NOT_ENROLLED) {
+                    SettingsRow(
+                        icon = Icons.Default.Fingerprint,
+                        title = "Enroll Biometrics in Device",
+                        subtitle = "Open device settings to register fingerprint or face",
+                        onClick = { BiometricAuthHelper.openBiometricSettings(context) }
+                    )
+                }
+
+                SettingsRow(
+                    icon = Icons.Default.Lock,
+                    title = "Lock Database & App",
+                    subtitle = "Require biometric or password unlock",
+                    onClick = {
+                        viewModel.logout()
+                        onLogout()
+                    }
                 )
 
                 SettingsRow(
@@ -302,28 +395,42 @@ fun SettingsScreen(
                 SettingsRow(
                     icon = Icons.Default.Policy,
                     title = "Privacy Policy",
-                    subtitle = "100% offline data protection",
+                    subtitle = "100% offline, biometric & voice disclosures",
                     onClick = { onNavigateToSubScreen(SettingsSubScreen.PRIVACY_POLICY) }
                 )
 
                 SettingsRow(
+                    icon = Icons.Default.Gavel,
+                    title = "Terms of Service & Disclaimer",
+                    subtitle = "Non-advisory terms & backup custody",
+                    onClick = { onNavigateToSubScreen(SettingsSubScreen.TERMS_OF_SERVICE) }
+                )
+
+                SettingsRow(
                     icon = Icons.Default.Security,
-                    title = "Data Safety Disclosures",
-                    subtitle = "Play Store compliance rules",
+                    title = "Data Safety & Console Answers",
+                    subtitle = "Play Store Data Safety questionnaire guide",
                     onClick = { onNavigateToSubScreen(SettingsSubScreen.DATA_SAFETY) }
                 )
 
                 SettingsRow(
-                    icon = Icons.Default.Info,
-                    title = "Terms of Service",
-                    subtitle = "Usage conditions",
-                    onClick = { onNavigateToSubScreen(SettingsSubScreen.TERMS_OF_SERVICE) }
+                    icon = Icons.Default.VerifiedUser,
+                    title = "Legal & Play Store Compliance",
+                    subtitle = "Permissions, storage & integrity policies",
+                    onClick = { onNavigateToSubScreen(SettingsSubScreen.PLAY_COMPLIANCE) }
+                )
+
+                SettingsRow(
+                    icon = Icons.Default.Code,
+                    title = "About & Open Source Licenses",
+                    subtitle = "Third-party attributions & Apache 2.0 notices",
+                    onClick = { onNavigateToSubScreen(SettingsSubScreen.OPEN_SOURCE_LICENSES) }
                 )
 
                 SettingsRow(
                     icon = Icons.Default.Info,
                     title = "About Net Worth Tracker",
-                    subtitle = "Version, creator & features",
+                    subtitle = "Version, capabilities & architecture",
                     onClick = { onNavigateToSubScreen(SettingsSubScreen.ABOUT) }
                 )
             }
@@ -370,5 +477,37 @@ fun SettingsRow(
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Icon(Icons.Default.ChevronRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+fun SettingsToggleRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = PrimaryGreen, modifier = Modifier.size(22.dp))
+        Spacer(modifier = Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = PrimaryGreen
+            )
+        )
     }
 }

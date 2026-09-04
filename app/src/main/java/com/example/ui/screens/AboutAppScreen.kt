@@ -19,13 +19,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -40,7 +45,8 @@ import com.example.ui.theme.PrimaryGreen
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutAppScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onOpenLicenses: () -> Unit = {}
 ) {
     Scaffold(
         topBar = {
@@ -86,7 +92,7 @@ fun AboutAppScreen(
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Version 2.4.0 (Build 2026)",
+                text = "Version 2.5.0 (Build 2026)",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -107,11 +113,12 @@ fun AboutAppScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     val features = listOf(
-                        "Voice Control for seamless hands-free reminders and financial asset additions",
+                        "Voice Control Assistant for hands-free reminders, financial entries, and account management",
+                        "Biometric Authentication (Fingerprint & Face Unlock) securing local database records",
                         "Multi-Profile Family Tracking (Self, Father, Mother, Family Joint)",
-                        "Real-time Stock Market valuation and profit/loss calculation",
-                        "Complete Financial Ledger (Income, Expense, and Inter-account Transfers)",
-                        "100% Offline-First Privacy with local Room Database storage",
+                        "Real-time Stock Market valuation & profit/loss calculation",
+                        "Complete Financial Ledger (Income, Expense, Transfers & Statement Sharing)",
+                        "100% Offline-First Privacy with local Room SQLite Database storage",
                         "Secure JSON Data Backup and Restore"
                     )
 
@@ -123,6 +130,50 @@ fun AboutAppScreen(
                         }
                     }
                 }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Architecture & Compliance Summary Card
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Security, contentDescription = null, tint = PrimaryGreen, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Architecture & Compliance",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "• Technology: 100% Kotlin & Jetpack Compose\n" +
+                                "• Local Persistence: AndroidX Room SQLite\n" +
+                                "• Security: AndroidX BiometricPrompt & MasterKey Crypto\n" +
+                                "• Policy: Google Play 2026 Developer Policy Compliant",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            OutlinedButton(
+                onClick = onOpenLicenses,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Icon(Icons.Default.Code, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Open Source Licenses", fontWeight = FontWeight.SemiBold)
             }
         }
     }

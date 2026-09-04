@@ -1,7 +1,7 @@
 package com.example
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -39,6 +39,8 @@ import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.DataSafetyScreen
 import com.example.ui.screens.LedgerScreen
 import com.example.ui.screens.LoginScreen
+import com.example.ui.screens.OpenSourceLicensesScreen
+import com.example.ui.screens.PlayComplianceScreen
 import com.example.ui.screens.PrivacyPolicyScreen
 import com.example.ui.screens.RemindersScreen
 import com.example.ui.screens.SettingsScreen
@@ -49,7 +51,7 @@ import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.PrimaryGreen
 import com.example.ui.viewmodel.NetWorthViewModel
 
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
     private val viewModel: NetWorthViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -90,7 +92,12 @@ fun MainAppContent(viewModel: NetWorthViewModel) {
                 SettingsSubScreen.PRIVACY_POLICY -> PrivacyPolicyScreen(onNavigateBack = { currentSubScreen = null })
                 SettingsSubScreen.TERMS_OF_SERVICE -> TermsOfServiceScreen(onNavigateBack = { currentSubScreen = null })
                 SettingsSubScreen.DATA_SAFETY -> DataSafetyScreen(onNavigateBack = { currentSubScreen = null })
-                SettingsSubScreen.ABOUT -> AboutAppScreen(onNavigateBack = { currentSubScreen = null })
+                SettingsSubScreen.PLAY_COMPLIANCE -> PlayComplianceScreen(onNavigateBack = { currentSubScreen = null })
+                SettingsSubScreen.OPEN_SOURCE_LICENSES -> OpenSourceLicensesScreen(onNavigateBack = { currentSubScreen = null })
+                SettingsSubScreen.ABOUT -> AboutAppScreen(
+                    onNavigateBack = { currentSubScreen = null },
+                    onOpenLicenses = { currentSubScreen = SettingsSubScreen.OPEN_SOURCE_LICENSES }
+                )
                 null -> {}
             }
         }
