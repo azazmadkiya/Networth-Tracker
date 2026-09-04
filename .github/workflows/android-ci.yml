@@ -11,13 +11,18 @@ jobs:
   build:
     name: Build & Test Android App
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    env:
+      GRADLE_OPTS: "-Djava.awt.headless=true"
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '21'
@@ -29,13 +34,13 @@ jobs:
         run: chmod +x gradlew
 
       - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest
+        run: ./gradlew testDebugUnitTest 2> >(grep -v -E "AWT-EventQueue-0|ksp.com.intellij" >&2)
 
       - name: Build Debug APK
-        run: ./gradlew assembleDebug
+        run: ./gradlew assembleDebug 2> >(grep -v -E "AWT-EventQueue-0|ksp.com.intellij" >&2)
 
       - name: Build Debug Android App Bundle (AAB)
-        run: ./gradlew bundleDebug
+        run: ./gradlew bundleDebug 2> >(grep -v -E "AWT-EventQueue-0|ksp.com.intellij" >&2)
 
       - name: Upload Debug APK Artifact
         uses: actions/upload-artifact@v4
@@ -50,3 +55,37 @@ jobs:
           name: app-debug-bundle
           path: app/build/outputs/bundle/debug/*.aab
           retention-days: 7
+
+      - name: Prepare APK & AAB for GitHub Releases
+        run: |
+          mkdir -p release-assets
+          cp app/build/outputs/apk/debug/*.apk release-assets/NetWorthTracker-v2.5.0-debug.apk
+          cp app/build/outputs/bundle/debug/*.aab release-assets/NetWorthTracker-v2.5.0-debug.aab
+
+      - name: Publish New Version to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+        with:
+          tag_name: v2.5.0
+          name: "Net Worth Tracker v2.5.0"
+          body: |
+            ## 🚀 Net Worth Tracker v2.5.0 (Latest Release)
+
+            ### 📱 Download & Install:
+            - **Debug APK**: Direct click on **`NetWorthTracker-v2.5.0-debug.apk`** below to install directly on your device.
+            - **Android App Bundle**: **`NetWorthTracker-v2.5.0-debug.aab`** for Google Play.
+
+            ### ✨ What's New:
+            - 🔒 **Sign-Up Flow**: Local account creation and login; hardcoded demo credentials removed.
+            - 🛡️ **Biometric Authentication**: Fingerprint and Face Unlock support with Android BiometricPrompt API.
+            - 📜 **Full Legal & Play Store Compliance**: Dedicated screens for Privacy Policy, Terms of Service, Data Safety, and Open Source Licenses.
+            - 🎙️ **Voice Control Assistant**: Add transactions hands-free using voice commands.
+            - 📈 **Real-time Stock Tracking**: Live P&L and investment monitoring.
+            - 💾 **100% Offline-First**: Room SQLite local persistence, no cloud trackers or unnecessary permissions.
+          files: |
+            release-assets/NetWorthTracker-v2.5.0-debug.apk
+            release-assets/NetWorthTracker-v2.5.0-debug.aab
+          prerelease: false
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
