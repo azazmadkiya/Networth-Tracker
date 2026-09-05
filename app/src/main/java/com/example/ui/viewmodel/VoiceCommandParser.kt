@@ -314,7 +314,7 @@ object VoiceCommandParser {
         val isLiability = lower.contains("liability") || lower.contains("loan") || lower.contains("debt") || lower.contains("borrowed") || lower.contains("dues")
 
         val detectedCategory = when {
-            lower.contains("stock") || lower.contains("share") || lower.contains("zerodha") || lower.contains("groww") || lower.contains("angel") -> ItemCategory.SHARE_MARKET
+            lower.contains("stock") || lower.contains("share") || lower.contains("share market") || lower.contains("equity") || lower.contains("zerodha") || lower.contains("groww") || lower.contains("angel") || lower.contains("upstox") || lower.contains("dhan") -> ItemCategory.SHARE_MARKET
             lower.contains("mutual fund") || lower.contains("sip") -> ItemCategory.MUTUAL_FUNDS
             lower.contains("gold") || lower.contains("silver") || lower.contains("jewelry") -> ItemCategory.GOLD_SILVER
             lower.contains("real estate") || lower.contains("plot") || lower.contains("land") || lower.contains("flat") || lower.contains("house") -> ItemCategory.REAL_ESTATE
@@ -403,6 +403,8 @@ object VoiceCommandParser {
             text.contains("zerodha") -> "Zerodha"
             text.contains("groww") -> "Groww"
             text.contains("upstox") -> "Upstox"
+            text.contains("angel") -> "Angel One"
+            text.contains("dhan") -> "Dhan"
             text.contains("axis") -> "Axis Bank"
             text.contains("kotak") -> "Kotak Mahindra Bank"
             else -> "Self / Portfolio"

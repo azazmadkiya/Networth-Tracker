@@ -31,7 +31,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.Button
@@ -66,7 +65,6 @@ import com.example.data.model.OwnerProfile
 import com.example.data.notification.NotificationHelper
 import com.example.ui.components.AddEditItemDialog
 import com.example.ui.components.AddEditReminderDialog
-import com.example.ui.components.AddLedgerEntryDialog
 import com.example.ui.components.AssetLiabilityBar
 import com.example.ui.components.NetWorthTrendChart
 import com.example.ui.components.ShareEntryDialog
@@ -95,7 +93,6 @@ fun DashboardScreen(
     var showAddItemDialog by remember { mutableStateOf(false) }
     var showAddReminderDialog by remember { mutableStateOf(false) }
     var isEventReminderInitial by remember { mutableStateOf(false) }
-    var showAddLedgerDialog by remember { mutableStateOf(false) }
     var editingItem by remember { mutableStateOf<FinancialItem?>(null) }
     var entryToShare by remember { mutableStateOf<LedgerEntry?>(null) }
 
@@ -142,22 +139,6 @@ fun DashboardScreen(
                 if (NotificationHelper.hasNotificationPermission(context)) {
                     NotificationHelper.notifyReminder(context, reminder)
                 }
-            }
-        )
-    }
-
-    if (showAddLedgerDialog) {
-        AddLedgerEntryDialog(
-            onDismiss = { showAddLedgerDialog = false },
-            onSave = { entry ->
-                viewModel.postDirectLedgerEntry(entry)
-                showAddLedgerDialog = false
-                Toast.makeText(context, "Transaction recorded", Toast.LENGTH_SHORT).show()
-            },
-            onSaveAndShare = { entry ->
-                viewModel.postDirectLedgerEntry(entry)
-                showAddLedgerDialog = false
-                entryToShare = entry
             }
         )
     }
@@ -475,28 +456,6 @@ fun DashboardScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Reminder",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-
-                // Add Ledger Transaction
-                Card(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { showAddLedgerDialog = true },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(Icons.Default.Receipt, contentDescription = "Ledger", tint = MaterialTheme.colorScheme.onSurface)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Ledger",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold
                         )
