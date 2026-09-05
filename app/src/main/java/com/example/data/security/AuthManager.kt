@@ -12,6 +12,8 @@ class AuthManager(context: Context) {
         private const val KEY_IS_LOGGED_IN = "is_logged_in"
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
         private const val KEY_HAS_ACCOUNT = "has_account"
+        private const val KEY_VOICE_INTERNET_ACCESS = "voice_internet_access"
+        private const val KEY_VOICE_INTERNET_DECIDED = "voice_internet_decided"
     }
 
     fun hasAccount(): Boolean {
@@ -80,5 +82,20 @@ class AuthManager(context: Context) {
 
     fun setBiometricEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_BIOMETRIC_ENABLED, enabled).apply()
+    }
+
+    fun isVoiceInternetAllowed(): Boolean {
+        return prefs.getBoolean(KEY_VOICE_INTERNET_ACCESS, false)
+    }
+
+    fun setVoiceInternetAllowed(allowed: Boolean) {
+        prefs.edit()
+            .putBoolean(KEY_VOICE_INTERNET_ACCESS, allowed)
+            .putBoolean(KEY_VOICE_INTERNET_DECIDED, true)
+            .apply()
+    }
+
+    fun hasUserDecidedVoiceInternet(): Boolean {
+        return prefs.getBoolean(KEY_VOICE_INTERNET_DECIDED, false)
     }
 }

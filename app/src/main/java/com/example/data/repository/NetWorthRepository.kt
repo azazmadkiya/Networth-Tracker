@@ -100,6 +100,10 @@ class NetWorthRepository(
         reminderDao.deleteAllSimpleReminders()
     }
 
+    suspend fun getItemCount(): Int {
+        return itemDao.getItemCount()
+    }
+
     fun exportToJson(
         items: List<FinancialItem>,
         snapshots: List<NetWorthSnapshot>,

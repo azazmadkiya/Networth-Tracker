@@ -18,7 +18,10 @@ data class FinancialReminder(
     val notes: String = "",
     val isCompleted: Boolean = false,
     val createdAt: Long = System.currentTimeMillis()
-)
+) {
+    val isEvent: Boolean
+        get() = reminderType == ReminderType.EVENT_REMINDER.name
+}
 
 @Entity(tableName = "reminders")
 data class Reminder(
@@ -36,6 +39,7 @@ enum class ReminderType(
     val displayName: String,
     val iconName: String
 ) {
+    EVENT_REMINDER("Event Reminder", "Event"),
     DUE_DATE("Payment / Bill Due", "Payment"),
     SIP_INVESTMENT("SIP / Mutual Fund", "TrendingUp"),
     LOAN_EMI("Loan EMI / Interest", "CreditCard"),
@@ -51,6 +55,27 @@ enum class ReminderType(
             } ?: DUE_DATE
         }
     }
+}
+
+data class EventTemplate(
+    val title: String,
+    val category: String,
+    val defaultDays: Long,
+    val frequency: ReminderFrequency,
+    val priority: ReminderPriority,
+    val placeholderBudget: Double = 0.0
+)
+
+object EventReminderPresets {
+    val presets = listOf(
+        EventTemplate("Tax Filing / Return Deadline", "Tax & Compliance", 15, ReminderFrequency.YEARLY, ReminderPriority.HIGH, 0.0),
+        EventTemplate("Insurance Policy Renewal", "Insurance", 10, ReminderFrequency.YEARLY, ReminderPriority.HIGH, 15000.0),
+        EventTemplate("FD / Bond Maturity Event", "Investment", 30, ReminderFrequency.ONE_TIME, ReminderPriority.HIGH, 0.0),
+        EventTemplate("Portfolio Rebalancing & Review", "Financial Review", 7, ReminderFrequency.QUARTERLY, ReminderPriority.MEDIUM, 0.0),
+        EventTemplate("Birthday / Anniversary Occasion", "Family & Gifts", 5, ReminderFrequency.YEARLY, ReminderPriority.MEDIUM, 2500.0),
+        EventTemplate("Property Tax / Society Dues", "Real Estate", 20, ReminderFrequency.YEARLY, ReminderPriority.MEDIUM, 5000.0),
+        EventTemplate("Vehicle Service & Pollution Test", "Automobile", 14, ReminderFrequency.MONTHLY, ReminderPriority.LOW, 2000.0)
+    )
 }
 
 enum class ReminderPriority(

@@ -16,8 +16,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Storage
@@ -106,9 +108,19 @@ fun PlayComplianceScreen(
                 subtitle = "Only minimal, user-facing permissions requested"
             ) {
                 ComplianceItem(
+                    icon = Icons.Default.Notifications,
+                    title = "POST_NOTIFICATIONS (System Alerts)",
+                    description = "Used solely on Android 13+ (API 33+) to alert users about upcoming SIP installments, EMI repayment due dates, and custom bill reminders. All alerts are generated locally on-device without remote push servers."
+                )
+                ComplianceItem(
                     icon = Icons.Default.Mic,
                     title = "RECORD_AUDIO (Microphone)",
                     description = "Used exclusively for the user-initiated Voice Assistant dialog to add reminders, accounts, and financial ledger items. Audio is streamed ephemerally to the system SpeechRecognizer and immediately discarded. Never recorded to files or uploaded."
+                )
+                ComplianceItem(
+                    icon = Icons.Default.Cloud,
+                    title = "INTERNET (Voice Control System Only - User Choice Yes/No)",
+                    description = "Used strictly and exclusively for speech recognition when the user explicitly grants 'Yes' permission. When set to 'No', speech recognition runs 100% offline. Financial balances, assets, liabilities, and transactions never connect to the internet."
                 )
                 ComplianceItem(
                     icon = Icons.Default.Fingerprint,

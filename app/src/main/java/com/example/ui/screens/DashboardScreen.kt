@@ -22,14 +22,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.TrendingDown
 import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -37,8 +43,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -57,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.model.FinancialItem
 import com.example.data.model.LedgerEntry
 import com.example.data.model.OwnerProfile
+import com.example.data.notification.NotificationHelper
 import com.example.ui.components.AddEditItemDialog
 import com.example.ui.components.AddEditReminderDialog
 import com.example.ui.components.AddLedgerEntryDialog
@@ -82,11 +89,12 @@ fun DashboardScreen(
     val filteredItems by viewModel.filteredItems.collectAsState()
     val reminders by viewModel.allReminders.collectAsState()
     val selectedOwner by viewModel.selectedOwnerFilter.collectAsState()
-    val isLiveStock by viewModel.isLiveStockTracking.collectAsState()
+    val recoveryMessage by viewModel.recoveryBannerMessage.collectAsState()
 
     var showVoiceDialog by remember { mutableStateOf(false) }
     var showAddItemDialog by remember { mutableStateOf(false) }
     var showAddReminderDialog by remember { mutableStateOf(false) }
+    var isEventReminderInitial by remember { mutableStateOf(false) }
     var showAddLedgerDialog by remember { mutableStateOf(false) }
     var editingItem by remember { mutableStateOf<FinancialItem?>(null) }
     var entryToShare by remember { mutableStateOf<LedgerEntry?>(null) }
@@ -120,11 +128,20 @@ fun DashboardScreen(
 
     if (showAddReminderDialog) {
         AddEditReminderDialog(
-            onDismiss = { showAddReminderDialog = false },
+            isEventReminderInitial = isEventReminderInitial,
+            onDismiss = { 
+                showAddReminderDialog = false 
+                isEventReminderInitial = false
+            },
             onSave = { reminder ->
                 viewModel.saveReminder(reminder)
                 showAddReminderDialog = false
-                Toast.makeText(context, "Reminder added", Toast.LENGTH_SHORT).show()
+                isEventReminderInitial = false
+                val typeName = if (reminder.isEvent) "Event" else "Reminder"
+                Toast.makeText(context, "Saved $typeName: ${reminder.title}", Toast.LENGTH_SHORT).show()
+                if (NotificationHelper.hasNotificationPermission(context)) {
+                    NotificationHelper.notifyReminder(context, reminder)
+                }
             }
         )
     }
@@ -218,6 +235,53 @@ fun DashboardScreen(
             }
         }
 
+        // Reinstall Data Recovery Notification Banner
+        recoveryMessage?.let { msg ->
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = PrimaryGreen.copy(alpha = 0.15f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = null,
+                                tint = PrimaryGreen
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = msg,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                        IconButton(
+                            onClick = { viewModel.dismissRecoveryBanner() },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Dismiss",
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // Owner Filter Chips
         item {
             Row(
@@ -265,18 +329,6 @@ fun DashboardScreen(
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White.copy(alpha = 0.8f)
                             )
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    text = if (isLiveStock) "Live Ticker ON" else "Live Ticker OFF",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White.copy(alpha = 0.85f)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Switch(
-                                    checked = isLiveStock,
-                                    onCheckedChange = { viewModel.isLiveStockTracking.value = it }
-                                )
-                            }
                         }
 
                         Spacer(modifier = Modifier.height(6.dp))
@@ -453,8 +505,11 @@ fun DashboardScreen(
             }
         }
 
-        // Active Reminders Banner (if any pending)
+        // Active Reminders & Events Banner (if any pending)
         val pendingReminders = reminders.filter { !it.isCompleted }
+        val pendingEvents = pendingReminders.filter { it.isEvent }
+        val pendingDues = pendingReminders.filter { !it.isEvent }
+
         if (pendingReminders.isNotEmpty()) {
             item {
                 Card(
@@ -463,7 +518,7 @@ fun DashboardScreen(
                         .clickable { onNavigateToTab("Reminders") },
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        containerColor = if (pendingEvents.isNotEmpty()) AssetGreen.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surfaceVariant
                     )
                 ) {
                     Row(
@@ -473,28 +528,47 @@ fun DashboardScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                             Icon(
-                                imageVector = Icons.Default.Notifications,
+                                imageVector = if (pendingEvents.isNotEmpty()) Icons.Default.Event else Icons.Default.Notifications,
                                 contentDescription = null,
-                                tint = PrimaryGreen
+                                tint = if (pendingEvents.isNotEmpty()) AssetGreen else PrimaryGreen
                             )
                             Spacer(modifier = Modifier.width(10.dp))
                             Column {
+                                val headerTitle = when {
+                                    pendingEvents.isNotEmpty() && pendingDues.isNotEmpty() -> 
+                                        "${pendingEvents.size} Events • ${pendingDues.size} Dues Pending"
+                                    pendingEvents.isNotEmpty() -> 
+                                        "${pendingEvents.size} Upcoming Event${if (pendingEvents.size > 1) "s" else ""}"
+                                    else -> 
+                                        "${pendingDues.size} Active Reminders / Due Bills"
+                                }
                                 Text(
-                                    text = "${pendingReminders.size} Active Reminders / Due Bills",
+                                    text = headerTitle,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold
                                 )
-                                val first = pendingReminders.first()
+                                val nextItem = pendingEvents.firstOrNull() ?: pendingReminders.first()
+                                val amtStr = if (nextItem.amount > 0) " (${NumberFormatUtils.formatCurrency(nextItem.amount)})" else ""
                                 Text(
-                                    text = "Next: ${first.title} (${NumberFormatUtils.formatCurrency(first.amount)})",
+                                    text = "Next: ${nextItem.title}$amtStr",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
-                        Icon(Icons.Default.ChevronRight, contentDescription = null)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(
+                                onClick = {
+                                    isEventReminderInitial = true
+                                    showAddReminderDialog = true
+                                }
+                            ) {
+                                Text("+ Event", fontWeight = FontWeight.Bold, color = AssetGreen)
+                            }
+                            Icon(Icons.Default.ChevronRight, contentDescription = null)
+                        }
                     }
                 }
             }
@@ -534,12 +608,64 @@ fun DashboardScreen(
             }
         }
 
-        // First 4 items preview
-        items(filteredItems.take(4)) { item ->
-            DashboardItemCard(
-                item = item,
-                onClick = { editingItem = item }
-            )
+        // First 4 items preview or Empty State
+        if (filteredItems.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AccountBalanceWallet,
+                            contentDescription = null,
+                            tint = PrimaryGreen,
+                            modifier = Modifier.size(44.dp)
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "No Accounts or Assets Yet",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Add your bank accounts, investments, properties, or loans to start tracking your family net worth completely offline.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { showAddItemDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Add First Asset / Account")
+                        }
+                    }
+                }
+            }
+        } else {
+            items(filteredItems.take(4)) { item ->
+                DashboardItemCard(
+                    item = item,
+                    onClick = { editingItem = item }
+                )
+            }
         }
     }
 }

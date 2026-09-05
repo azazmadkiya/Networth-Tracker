@@ -92,7 +92,7 @@ fun AboutAppScreen(
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Version 2.5.0 (Build 2026)",
+                text = "Version ${com.example.BuildConfig.VERSION_NAME} (Build 2026)",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

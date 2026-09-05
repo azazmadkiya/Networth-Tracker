@@ -17,7 +17,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
@@ -121,8 +123,30 @@ fun PrivacyPolicyScreen(
             Spacer(modifier = Modifier.height(14.dp))
 
             PolicyCard(
+                icon = Icons.Default.Notifications,
+                title = "3. System Notifications & Reminders (POST_NOTIFICATIONS)",
+                content = "The application requests the POST_NOTIFICATIONS permission (on Android 13+) to deliver timely local alerts regarding upcoming SIP deposits, EMI due dates, and critical bill deadlines:\n\n" +
+                        "• 100% Local Notifications: All notifications are triggered and managed on-device through the Android NotificationManager system.\n" +
+                        "• Zero Cloud Push Tokens: We do NOT use Firebase Cloud Messaging (FCM), OneSignal, or any remote servers to send notifications.\n" +
+                        "• Fully Granular Control: You can disable or re-enable notifications at any time directly in the app's Settings or device notification channels."
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            PolicyCard(
+                icon = Icons.Default.Cloud,
+                title = "4. Internet Permission (INTERNET) - Voice Control Only",
+                content = "The application includes the android.permission.INTERNET permission with strict architectural boundaries:\n\n" +
+                        "• Strictly Restricted to Voice Control: Internet access is accessed ONLY by the Android SpeechRecognizer service when you explicitly choose 'Yes' to enable online speech recognition for enhanced accuracy.\n" +
+                        "• User-Driven Choice (Yes / No): You maintain 100% control. When you select 'No', voice recognition runs completely offline on-device with zero network connectivity.\n" +
+                        "• Zero Cloud Financial Tracking: Your financial assets, liabilities, reminders, accounts, ledger entries, and net worth calculations remain 100% offline in local Room SQLite storage and NEVER transmit over the internet."
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            PolicyCard(
                 icon = Icons.Default.Fingerprint,
-                title = "3. Biometric Authentication (Fingerprint & Face)",
+                title = "5. Biometric Authentication (Fingerprint & Face)",
                 content = "The application supports biometric authentication via the AndroidX BiometricPrompt API (USE_BIOMETRIC and USE_FINGERPRINT):\n\n" +
                         "• Hardware Module Enclave: Biometric checks are executed entirely by your device's secure hardware enclave (TEE/Secure Element).\n" +
                         "• Zero App Access: The application never sees, collects, transmits, or stores your fingerprint or facial geometry data.\n" +
@@ -133,7 +157,7 @@ fun PrivacyPolicyScreen(
 
             PolicyCard(
                 icon = Icons.Default.Share,
-                title = "4. User-Directed Financial Sharing",
+                title = "6. User-Directed Financial Sharing",
                 content = "The application allows you to share individual transaction receipts, income/expense entries, and ledger statements via WhatsApp, SMS, Email, or other communication apps:\n\n" +
                         "• 100% User Controlled: Sharing occurs strictly through the standard Android Share Sheet upon your explicit click.\n" +
                         "• No Third-Party Intermediaries: No third-party servers capture or intermediate shared messages."
@@ -143,7 +167,7 @@ fun PrivacyPolicyScreen(
 
             PolicyCard(
                 icon = Icons.Default.Security,
-                title = "5. Encryption & Data Security",
+                title = "7. Encryption & Data Security",
                 content = "App credentials, profile selections, and biometric flags are protected using AndroidX Security Crypto (EncryptedSharedPreferences) backed by the Android Keystore system. Data is isolated within the Android application sandbox."
             )
 
@@ -151,7 +175,7 @@ fun PrivacyPolicyScreen(
 
             PolicyCard(
                 icon = Icons.Default.DeleteForever,
-                title = "6. Data Deletion & Right to Erasure",
+                title = "8. Data Deletion & Right to Erasure",
                 content = "You have full autonomy over your data. You can instantly erase all database records, snapshots, reminders, and reset your credentials by tapping 'Wipe All Financial Data' in the Settings screen. Once confirmed, all local database tables are purged immediately."
             )
 

@@ -39,6 +39,12 @@ interface FinancialItemDao {
 
     @Query("DELETE FROM financial_items")
     suspend fun deleteAllItems()
+
+    @Query("SELECT COUNT(*) FROM financial_items")
+    suspend fun getItemCount(): Int
+
+    @Query("SELECT * FROM financial_items")
+    suspend fun getAllItemsList(): List<FinancialItem>
 }
 
 @Dao

@@ -4,7 +4,11 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Bundle
+import android.provider.Settings
+import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -35,24 +39,35 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,6 +84,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
+import com.example.data.security.AuthManager
 import com.example.ui.theme.AssetGreen
 import com.example.ui.theme.LiabilityRed
 import com.example.ui.theme.PrimaryGreen
@@ -85,8 +101,20 @@ fun VoiceAssistantDialog(
     onNavigate: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val authManager = remember { AuthManager(context) }
+    var isInternetAllowed by remember { mutableStateOf(authManager.isVoiceInternetAllowed()) }
+    var showInternetConsentDialog by remember { mutableStateOf(!authManager.hasUserDecidedVoiceInternet()) }
+
     var spokenText by remember { mutableStateOf("") }
     var isListening by remember { mutableStateOf(false) }
+    var statusText by remember {
+        mutableStateOf(
+            if (isInternetAllowed) "Cloud Voice Active (Internet Enabled)" else "Offline Voice Active (100% On-Device)"
+        )
+    }
+    var speechServiceAvailable by remember {
+        mutableStateOf(SpeechRecognizer.isRecognitionAvailable(context))
+    }
 
     var hasMicPermission by remember {
         mutableStateOf(
@@ -94,7 +122,31 @@ fun VoiceAssistantDialog(
         )
     }
 
-    // Speech recognition launcher
+    // In-app SpeechRecognizer instance
+    val speechRecognizer = remember {
+        try {
+            if (SpeechRecognizer.isRecognitionAvailable(context)) {
+                SpeechRecognizer.createSpeechRecognizer(context)
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    DisposableEffect(speechRecognizer) {
+        onDispose {
+            try {
+                speechRecognizer?.stopListening()
+                speechRecognizer?.destroy()
+            } catch (e: Exception) {
+                // ignore
+            }
+        }
+    }
+
+    // System Speech recognition launcher (Fallback)
     val speechLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -103,22 +155,141 @@ fun VoiceAssistantDialog(
             val matches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
             if (!matches.isNullOrEmpty()) {
                 spokenText = matches[0]
+                statusText = "Captured: \"${matches[0]}\""
+            } else {
+                statusText = if (isInternetAllowed) "Cloud Voice Active (Tap mic to speak)" else "Offline Voice Active (Tap mic to speak)"
+            }
+        } else {
+            statusText = if (isInternetAllowed) "Cloud Voice Active (Tap mic to speak)" else "Offline Voice Active (Tap mic to speak)"
+        }
+    }
+
+    val createSpeechIntent = {
+        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+            putExtra(
+                RecognizerIntent.EXTRA_PROMPT,
+                if (isInternetAllowed) "Speak financial command (Cloud Voice)..." else "Speak financial command (Offline Voice)..."
+            )
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+            // User choice: Internet Permission strictly for Voice Control (Yes/No)
+            if (isInternetAllowed) {
+                putExtra("android.speech.extra.PREFER_OFFLINE", false)
+            } else {
+                putExtra("android.speech.extra.PREFER_OFFLINE", true)
             }
         }
     }
 
-    fun startListening() {
+    fun stopListening() {
         try {
-            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-                putExtra(RecognizerIntent.EXTRA_PROMPT, "Speak a financial command...")
+            speechRecognizer?.stopListening()
+        } catch (e: Exception) {
+            // ignore
+        }
+        isListening = false
+        statusText = "Tap microphone to speak"
+    }
+
+    fun startListening() {
+        if (isListening) {
+            stopListening()
+            return
+        }
+
+        // Try in-app SpeechRecognizer first
+        if (speechRecognizer != null) {
+            try {
+                speechRecognizer.setRecognitionListener(object : RecognitionListener {
+                    override fun onReadyForSpeech(params: Bundle?) {
+                        isListening = true
+                        statusText = "Listening... Speak now"
+                    }
+
+                    override fun onBeginningOfSpeech() {
+                        statusText = "Hearing your voice..."
+                    }
+
+                    override fun onRmsChanged(rmsdB: Float) {}
+
+                    override fun onBufferReceived(buffer: ByteArray?) {}
+
+                    override fun onEndOfSpeech() {
+                        isListening = false
+                        statusText = "Processing command..."
+                    }
+
+                    override fun onError(error: Int) {
+                        isListening = false
+                        when (error) {
+                            SpeechRecognizer.ERROR_NO_MATCH -> {
+                                statusText = "No speech detected. Tap mic to retry."
+                            }
+                            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> {
+                                statusText = "Listening timed out. Tap to speak."
+                            }
+                            SpeechRecognizer.ERROR_AUDIO -> {
+                                statusText = "Audio recording issue. Tap mic again."
+                            }
+                            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> {
+                                statusText = "Microphone permission required."
+                            }
+                            else -> {
+                                // Try system dialog fallback
+                                try {
+                                    val intent = createSpeechIntent()
+                                    speechLauncher.launch(intent)
+                                } catch (e: Exception) {
+                                    statusText = "Speech recognizer unavailable. Type below!"
+                                    speechServiceAvailable = false
+                                }
+                            }
+                        }
+                    }
+
+                    override fun onResults(results: Bundle?) {
+                        isListening = false
+                        val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        if (!matches.isNullOrEmpty()) {
+                            spokenText = matches[0]
+                            statusText = "Understood: \"${matches[0]}\""
+                        } else {
+                            statusText = "Tap microphone to speak"
+                        }
+                    }
+
+                    override fun onPartialResults(partialResults: Bundle?) {
+                        val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                        if (!matches.isNullOrEmpty()) {
+                            spokenText = matches[0]
+                            statusText = "Hearing: ${matches[0]}"
+                        }
+                    }
+
+                    override fun onEvent(eventType: Int, params: Bundle?) {}
+                })
+
+                val intent = createSpeechIntent()
+                speechRecognizer.startListening(intent)
+                isListening = true
+                statusText = "Listening... Speak now"
+                return
+            } catch (e: Exception) {
+                // fall through to Intent launcher
             }
+        }
+
+        // Secondary fallback: Launch system speech activity
+        try {
+            val intent = createSpeechIntent()
             isListening = true
             speechLauncher.launch(intent)
         } catch (e: Exception) {
             isListening = false
-            Toast.makeText(context, "Voice input not supported or speech service unavailable. You can type commands below!", Toast.LENGTH_SHORT).show()
+            speechServiceAvailable = false
+            statusText = "Voice service unavailable. You can type commands below!"
         }
     }
 
@@ -130,7 +301,8 @@ fun VoiceAssistantDialog(
         if (isGranted) {
             startListening()
         } else {
-            Toast.makeText(context, "Microphone permission denied. You can type financial commands below!", Toast.LENGTH_LONG).show()
+            statusText = "Microphone permission denied"
+            Toast.makeText(context, "Microphone permission required for voice input. You can type commands below!", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -142,9 +314,15 @@ fun VoiceAssistantDialog(
         }
     }
 
-    // Auto-launch on dialog open
+    // Attempt start on open only if microphone permission already granted
     LaunchedEffect(Unit) {
-        requestAndStartListening()
+        if (hasMicPermission && speechServiceAvailable) {
+            try {
+                startListening()
+            } catch (e: Exception) {
+                // quiet ignore on initial auto-launch
+            }
+        }
     }
 
     val parsedAction = remember(spokenText) {
@@ -161,6 +339,83 @@ fun VoiceAssistantDialog(
         ),
         label = "pulseScale"
     )
+
+    if (showInternetConsentDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                authManager.setVoiceInternetAllowed(false)
+                isInternetAllowed = false
+                showInternetConsentDialog = false
+            },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Cloud,
+                    contentDescription = null,
+                    tint = PrimaryGreen,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Internet Permission (Voice Control Only)",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Access Internet Permission for Voice Control System?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = "• YES (Online Speech): Enables cloud-assisted speech recognition for greater vocabulary, accents, and high precision.\n\n" +
+                               "• NO (100% Offline): Operates strictly on-device with zero network access.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = PrimaryGreen.copy(alpha = 0.1f)
+                    ) {
+                        Text(
+                            text = "🔒 Sandboxed Protection: Internet permission is strictly restricted ONLY to speech recognition. Your financial database, balances, ledger, and numbers NEVER touch the internet.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = PrimaryGreen,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        authManager.setVoiceInternetAllowed(true)
+                        isInternetAllowed = true
+                        showInternetConsentDialog = false
+                        statusText = "Online Voice active (Internet: YES)"
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
+                ) {
+                    Text("YES (Allow Internet)")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        authManager.setVoiceInternetAllowed(false)
+                        isInternetAllowed = false
+                        showInternetConsentDialog = false
+                        statusText = "Offline Voice active (Internet: NO)"
+                    }
+                ) {
+                    Text("NO (100% Offline)")
+                }
+            }
+        )
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -212,7 +467,116 @@ fun VoiceAssistantDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Voice Control Internet Access Mode (User Choice Yes/No)
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isInternetAllowed) AssetGreen.copy(alpha = 0.10f) else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                Icon(
+                                    imageVector = if (isInternetAllowed) Icons.Default.Cloud else Icons.Default.Lock,
+                                    contentDescription = "Voice Internet Mode",
+                                    tint = if (isInternetAllowed) AssetGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Internet Permission (Voice Only)",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = if (isInternetAllowed) AssetGreen.copy(alpha = 0.2f) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                            ) {
+                                Text(
+                                    text = if (isInternetAllowed) "YES (Online)" else "NO (Offline)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isInternetAllowed) AssetGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = if (isInternetAllowed)
+                                "User Choice: YES • Cloud speech recognition enabled for maximum accuracy."
+                            else
+                                "User Choice: NO • 100% offline speech recognition without internet.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Explicit YES / NO Choice Chips
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FilterChip(
+                                selected = isInternetAllowed,
+                                onClick = {
+                                    authManager.setVoiceInternetAllowed(true)
+                                    isInternetAllowed = true
+                                    if (isListening) stopListening()
+                                    statusText = "Cloud Voice active (Internet: YES)"
+                                },
+                                label = { Text("YES (Allow Internet)") },
+                                leadingIcon = {
+                                    if (isInternetAllowed) {
+                                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp), tint = AssetGreen)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                            FilterChip(
+                                selected = !isInternetAllowed,
+                                onClick = {
+                                    authManager.setVoiceInternetAllowed(false)
+                                    isInternetAllowed = false
+                                    if (isListening) stopListening()
+                                    statusText = "Offline Voice active (Internet: NO)"
+                                },
+                                label = { Text("NO (100% Offline)") },
+                                leadingIcon = {
+                                    if (!isInternetAllowed) {
+                                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "🔒 Sandboxed: Internet access applies ONLY to voice recognition. Financial database & ledger NEVER access internet.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = PrimaryGreen,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
 
                 // Microphone Permission Banner if not granted
                 if (!hasMicPermission) {
@@ -255,6 +619,58 @@ fun VoiceAssistantDialog(
                     }
                 }
 
+                // If speech service is unavailable on device
+                if (!speechServiceAvailable) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Speech Service Inactive",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Enable Google Voice Typing or type commands directly below.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                onClick = {
+                                    try {
+                                        context.startActivity(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS))
+                                    } catch (e: Exception) {
+                                        try {
+                                            context.startActivity(Intent(Settings.ACTION_SETTINGS))
+                                        } catch (e2: Exception) {
+                                            Toast.makeText(context, "Open system settings to enable voice typing", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
+                            ) {
+                                Text("Settings", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+
                 // Pulsing Mic Button
                 Box(
                     modifier = Modifier
@@ -267,7 +683,7 @@ fun VoiceAssistantDialog(
                 ) {
                     Icon(
                         imageVector = if (hasMicPermission) Icons.Default.Mic else Icons.Default.MicOff,
-                        contentDescription = "Tap to Speak",
+                        contentDescription = if (isListening) "Listening (Tap to stop)" else "Tap to Speak",
                         tint = Color.White,
                         modifier = Modifier.size(40.dp)
                     )
@@ -277,22 +693,30 @@ fun VoiceAssistantDialog(
                 Text(
                     text = when {
                         !hasMicPermission -> "Tap to grant microphone permission"
-                        isListening -> "Listening... Speak now"
-                        else -> "Tap microphone to speak"
+                        isListening -> "Listening... Speak now (Tap to finish)"
+                        else -> statusText
                     },
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = if (isListening) PrimaryGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = if (isListening) FontWeight.SemiBold else FontWeight.Normal
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Speech Input / Text Field
+                // Speech Input / Text Field with clear & quick execute actions
                 OutlinedTextField(
                     value = spokenText,
                     onValueChange = { spokenText = it },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Command / Spoken text") },
                     placeholder = { Text("e.g. Add account HDFC 50000 / Add reminder...") },
+                    trailingIcon = {
+                        if (spokenText.isNotBlank()) {
+                            IconButton(onClick = { spokenText = "" }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Clear")
+                            }
+                        }
+                    },
                     shape = RoundedCornerShape(16.dp),
                     singleLine = false,
                     maxLines = 3
@@ -327,8 +751,9 @@ fun VoiceAssistantDialog(
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 val quickChips = listOf(
-                    "Add account HDFC Bank 50000",
+                    "Add event reminder Tax Filing in 5 days",
                     "Add reminder pay electricity bill 1500 tomorrow",
+                    "Add account HDFC Bank 50000",
                     "Add asset Reliance stock 50000",
                     "Add expense 450 groceries",
                     "Add income 80000 salary",
@@ -358,6 +783,14 @@ fun VoiceAssistantDialog(
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "🔒 Internet permission is sandboxed strictly to Voice Control. All financial records and calculations remain 100% offline.",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+                )
             }
         }
     }
@@ -378,19 +811,20 @@ fun ParsedActionPreview(
         Column(modifier = Modifier.padding(14.dp)) {
             when (action) {
                 is ParsedVoiceAction.AddReminderAction -> {
+                    val isEvent = action.reminder.isEvent || action.reminder.reminderType == com.example.data.model.ReminderType.EVENT_REMINDER.name
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            Icons.Default.Notifications,
+                            if (isEvent) Icons.Default.Event else Icons.Default.Notifications,
                             contentDescription = null,
-                            tint = PrimaryGreen,
+                            tint = if (isEvent) AssetGreen else PrimaryGreen,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Detected Reminder",
+                            text = if (isEvent) "Detected Event Reminder" else "Detected Reminder",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
-                            color = PrimaryGreen
+                            color = if (isEvent) AssetGreen else PrimaryGreen
                         )
                     }
                     Spacer(modifier = Modifier.height(6.dp))
@@ -399,12 +833,16 @@ fun ParsedActionPreview(
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold
                     )
+                    if (action.reminder.amount > 0) {
+                        Text(
+                            text = if (isEvent) "Budget: ${NumberFormatUtils.formatCurrency(action.reminder.amount)}" else "Amount: ${NumberFormatUtils.formatCurrency(action.reminder.amount)}",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    val currentDay = System.currentTimeMillis() / 86400000L
+                    val daysDiff = action.reminder.dueDateEpochDay - currentDay
                     Text(
-                        text = "Amount: ${NumberFormatUtils.formatCurrency(action.reminder.amount)}",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                    Text(
-                        text = "Category: ${action.reminder.reminderType} | Due in: ${action.reminder.dueDateEpochDay - (System.currentTimeMillis() / 86400000L)} days",
+                        text = "Type: ${action.reminder.reminderType.replace('_', ' ')} | Schedule: ${if (daysDiff <= 0) "Today" else "In $daysDiff days"}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -413,11 +851,11 @@ fun ParsedActionPreview(
                         onClick = onConfirm,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
+                        colors = ButtonDefaults.buttonColors(containerColor = if (isEvent) AssetGreen else PrimaryGreen)
                     ) {
                         Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Confirm & Add Reminder")
+                        Text(if (isEvent) "Confirm & Add Event Reminder" else "Confirm & Add Reminder")
                     }
                 }
                 is ParsedVoiceAction.AddAccountAction -> {

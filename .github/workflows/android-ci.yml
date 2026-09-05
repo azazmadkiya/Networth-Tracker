@@ -3,6 +3,8 @@ name: Android CI/CD Workflow
 on:
   push:
     branches: [ master, main ]
+    tags:
+      - 'v*'
   pull_request:
     branches: [ master, main ]
   workflow_dispatch:
@@ -20,6 +22,14 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Extract App Version
+        id: app_version
+        run: |
+          VERSION=$(grep "versionName" app/build.gradle.kts | head -n 1 | awk -F'"' '{print $2}')
+          if [ -z "$VERSION" ]; then VERSION="2.6.0"; fi
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted App Version: $VERSION"
 
       - name: Set up JDK 21
         uses: actions/setup-java@v5
@@ -58,33 +68,33 @@ jobs:
 
       - name: Prepare APK & AAB for GitHub Releases
         run: |
+          VERSION="${{ steps.app_version.outputs.VERSION }}"
           mkdir -p release-assets
-          cp app/build/outputs/apk/debug/*.apk release-assets/NetWorthTracker-v2.5.0-debug.apk
-          cp app/build/outputs/bundle/debug/*.aab release-assets/NetWorthTracker-v2.5.0-debug.aab
+          cp app/build/outputs/apk/debug/*.apk "release-assets/NetWorthTracker-v${VERSION}-debug.apk"
+          cp app/build/outputs/bundle/debug/*.aab "release-assets/NetWorthTracker-v${VERSION}-debug.aab"
 
       - name: Publish New Version to GitHub Releases
         uses: softprops/action-gh-release@v2
-        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
         with:
-          tag_name: v2.5.0
-          name: "Net Worth Tracker v2.5.0"
+          tag_name: "v${{ steps.app_version.outputs.VERSION }}"
+          name: "Net Worth Tracker v${{ steps.app_version.outputs.VERSION }}"
           body: |
-            ## 🚀 Net Worth Tracker v2.5.0 (Latest Release)
+            ## 🚀 Net Worth Tracker v${{ steps.app_version.outputs.VERSION }} (Latest Release)
 
-            ### 📱 Download & Install:
-            - **Debug APK**: Direct click on **`NetWorthTracker-v2.5.0-debug.apk`** below to install directly on your device.
-            - **Android App Bundle**: **`NetWorthTracker-v2.5.0-debug.aab`** for Google Play.
+            ### 📱 Download & Direct Install:
+            - **Debug APK**: Download **`NetWorthTracker-v${{ steps.app_version.outputs.VERSION }}-debug.apk`** below to install directly on your Android phone.
+            - **Android App Bundle**: **`NetWorthTracker-v${{ steps.app_version.outputs.VERSION }}-debug.aab`** for Google Play Console / testing.
 
-            ### ✨ What's New:
-            - 🔒 **Sign-Up Flow**: Local account creation and login; hardcoded demo credentials removed.
-            - 🛡️ **Biometric Authentication**: Fingerprint and Face Unlock support with Android BiometricPrompt API.
-            - 📜 **Full Legal & Play Store Compliance**: Dedicated screens for Privacy Policy, Terms of Service, Data Safety, and Open Source Licenses.
-            - 🎙️ **Voice Control Assistant**: Add transactions hands-free using voice commands.
-            - 📈 **Real-time Stock Tracking**: Live P&L and investment monitoring.
-            - 💾 **100% Offline-First**: Room SQLite local persistence, no cloud trackers or unnecessary permissions.
+            ### ✨ What's New in v${{ steps.app_version.outputs.VERSION }}:
+            - 📅 **Dedicated Event Reminders**: Added comprehensive financial event scheduling (Tax filing deadlines, Insurance renewals, FD maturities, Portfolio rebalancing, Birthdays/Anniversaries, Property taxes, Vehicle service) with quick presets and live calendar calculations.
+            - 🔔 **Instant Alert Testing**: One-tap "Test Alert" triggers system notification channels with custom sound, high priority, and countdown badges.
+            - 🧭 **Optimized 6-Tab Navigation Bar**: Fixed bottom bar text wrapping so Dashboard, Assets, Ledger, Analytics, Reminders, and Settings display in a single neat row without awkward line breaks.
+            - 🎙️ **Hands-free Voice Assistant**: Speak naturally to add events and reminders (*"Add event reminder Tax Filing in 5 days"*).
+            - 🛡️ **Privacy & Biometric Lock**: 100% offline-first Room database, biometric fingerprint/face authentication, and zero third-party trackers.
           files: |
-            release-assets/NetWorthTracker-v2.5.0-debug.apk
-            release-assets/NetWorthTracker-v2.5.0-debug.aab
+            release-assets/NetWorthTracker-v${{ steps.app_version.outputs.VERSION }}-debug.apk
+            release-assets/NetWorthTracker-v${{ steps.app_version.outputs.VERSION }}-debug.aab
           prerelease: false
           make_latest: true
         env:

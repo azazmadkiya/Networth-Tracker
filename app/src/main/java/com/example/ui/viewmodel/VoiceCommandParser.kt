@@ -170,10 +170,15 @@ object VoiceCommandParser {
             )
         }
 
-        // 5. Check if it is a Reminder intent
-        if (lower.contains("remind") || lower.contains("reminder") || lower.contains("bill due") || lower.contains("alert")) {
+        // 5. Check if it is a Reminder or Event intent
+        if (lower.contains("remind") || lower.contains("reminder") || lower.contains("bill due") || lower.contains("alert") || lower.contains("event")) {
             val hasEmi = "\\bemi\\b".toRegex().containsMatchIn(lower)
+            val isEvent = lower.contains("event") || lower.contains("tax filing") || lower.contains("maturity") ||
+                    lower.contains("birthday") || lower.contains("anniversary") || lower.contains("renewal") ||
+                    lower.contains("milestone")
+
             val reminderType = when {
+                isEvent -> ReminderType.EVENT_REMINDER
                 lower.contains("sip") || lower.contains("mutual fund") -> ReminderType.SIP_INVESTMENT
                 lower.contains("credit card") -> ReminderType.CREDIT_CARD_BILL
                 lower.contains("insurance") || lower.contains("premium") -> ReminderType.INSURANCE_PREMIUM
@@ -192,16 +197,26 @@ object VoiceCommandParser {
                 lower.contains("every month") || lower.contains("monthly") -> ReminderFrequency.MONTHLY
                 lower.contains("quarterly") -> ReminderFrequency.QUARTERLY
                 lower.contains("yearly") || lower.contains("annual") -> ReminderFrequency.YEARLY
-                else -> ReminderFrequency.ONE_TIME
+                else -> if (isEvent) ReminderFrequency.ONE_TIME else ReminderFrequency.ONE_TIME
             }
 
             val dueDayEpoch = calculateDueDayEpoch(lower)
 
             // Clean title
             var cleanedTitle = text
+                .replace("(?i)add event reminder to ".toRegex(), "")
+                .replace("(?i)add event reminder for ".toRegex(), "")
+                .replace("(?i)add event reminder ".toRegex(), "")
+                .replace("(?i)add event to ".toRegex(), "")
+                .replace("(?i)add event for ".toRegex(), "")
+                .replace("(?i)add event ".toRegex(), "")
+                .replace("(?i)event reminder for ".toRegex(), "")
+                .replace("(?i)event reminder ".toRegex(), "")
                 .replace("(?i)add reminder to ".toRegex(), "")
                 .replace("(?i)add reminder ".toRegex(), "")
                 .replace("(?i)remind me to ".toRegex(), "")
+                .replace("(?i)remind me event ".toRegex(), "")
+                .replace("(?i)remind me about ".toRegex(), "")
                 .replace("(?i)remind me ".toRegex(), "")
                 .replace("(?i)set reminder for ".toRegex(), "")
                 .replace("(?i)set reminder ".toRegex(), "")
@@ -219,7 +234,7 @@ object VoiceCommandParser {
             }
             cleanedTitle = cleanedTitle.trim().trim(',', '.', '-', ':').capitalizeFirst()
             if (cleanedTitle.isBlank()) {
-                cleanedTitle = "${reminderType.displayName} Reminder"
+                cleanedTitle = if (isEvent) "Event Reminder" else "${reminderType.displayName} Reminder"
             }
 
             val reminder = FinancialReminder(
@@ -233,9 +248,15 @@ object VoiceCommandParser {
                 notes = "Created via Voice Command: \"$rawText\""
             )
 
+            val explanation = if (isEvent) {
+                "Event Reminder: '$cleanedTitle' ${if (extractedAmount > 0) "with budget ₹ " + String.format("%.0f", extractedAmount) else "scheduled"}"
+            } else {
+                "Reminder for '$cleanedTitle' of ₹ ${String.format("%.0f", extractedAmount)} (${reminderType.displayName})"
+            }
+
             return ParsedVoiceAction.AddReminderAction(
                 reminder = reminder,
-                explanation = "Reminder for '$cleanedTitle' of ₹ ${String.format("%.0f", extractedAmount)} (${reminderType.displayName})"
+                explanation = explanation
             )
         }
 

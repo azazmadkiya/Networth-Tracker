@@ -1,14 +1,19 @@
 package com.example.ui.screens
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,10 +24,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Download
@@ -33,6 +41,7 @@ import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material.icons.filled.Security
@@ -44,14 +53,18 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -63,12 +76,15 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.data.notification.NotificationHelper
 import com.example.data.security.BiometricAuthHelper
 import com.example.data.security.BiometricStatus
 import com.example.data.security.findFragmentActivity
 import com.example.ui.components.VoiceAssistantDialog
+import com.example.ui.theme.AssetGreen
 import com.example.ui.theme.LiabilityRed
 import com.example.ui.theme.PrimaryGreen
+import com.example.ui.theme.PrimaryGreenDark
 import com.example.ui.viewmodel.NetWorthViewModel
 
 @Composable
@@ -118,6 +134,40 @@ fun SettingsScreen(
 
     var showClearDataDialog by remember { mutableStateOf(false) }
     var showVoiceDialog by remember { mutableStateOf(false) }
+
+    var hasNotificationPermission by remember {
+        mutableStateOf(NotificationHelper.hasNotificationPermission(context))
+    }
+    var hasMicPermission by remember {
+        mutableStateOf(NotificationHelper.hasMicrophonePermission(context))
+    }
+    var isVoiceInternetAllowed by remember {
+        mutableStateOf(viewModel.authManager.isVoiceInternetAllowed())
+    }
+    val offlineBackupSummary by viewModel.offlineBackupSummary.collectAsState()
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasNotificationPermission = isGranted
+        if (isGranted) {
+            Toast.makeText(context, "Notifications enabled! Sending test alert...", Toast.LENGTH_SHORT).show()
+            NotificationHelper.sendTestNotification(context)
+        } else {
+            Toast.makeText(context, "Notification permission not granted.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val micPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        hasMicPermission = isGranted
+        if (isGranted) {
+            Toast.makeText(context, "Microphone access granted for Voice Assistant!", Toast.LENGTH_SHORT).show()
+        } else {
+            Toast.makeText(context, "Microphone permission not granted.", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     if (showVoiceDialog) {
         VoiceAssistantDialog(
@@ -331,6 +381,192 @@ fun SettingsScreen(
             }
         }
 
+        // App Permissions & Device Hardware Card
+        Card(
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Permissions & Device Access",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = PrimaryGreen,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (hasNotificationPermission && hasMicPermission) AssetGreen.copy(alpha = 0.15f) else PrimaryGreen.copy(alpha = 0.1f)
+                    ) {
+                        Text(
+                            text = if (hasNotificationPermission && hasMicPermission) "All Granted" else "Action Available",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (hasNotificationPermission && hasMicPermission) AssetGreen else PrimaryGreen,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Notifications
+                PermissionStatusRow(
+                    icon = Icons.Default.Notifications,
+                    title = "System Notifications",
+                    subtitle = if (hasNotificationPermission) "Alerts for upcoming SIP payments, EMI dues, and financial deadlines" else "Allow permission to receive timely due date alerts",
+                    isGranted = hasNotificationPermission,
+                    onRequestPermission = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            Toast.makeText(context, "Notifications enabled on this OS version", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    onAction = {
+                        val sent = NotificationHelper.sendTestNotification(context)
+                        if (sent) {
+                            Toast.makeText(context, "🔔 Test alert sent to your status bar!", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "Please allow notification permission first.", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    actionButtonLabel = "Send Test Alert"
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Microphone
+                PermissionStatusRow(
+                    icon = Icons.Default.Mic,
+                    title = "Microphone (Voice Control)",
+                    subtitle = if (hasMicPermission) "Speak commands to record transactions and reminders hands-free" else "Allow permission to use the Voice Assistant",
+                    isGranted = hasMicPermission,
+                    onRequestPermission = {
+                        micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    },
+                    onAction = {
+                        showVoiceDialog = true
+                    },
+                    actionButtonLabel = "Open Voice Assistant"
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Voice Control Internet Access (User Choice Yes/No)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(
+                                        if (isVoiceInternetAllowed) AssetGreen.copy(alpha = 0.15f) else PrimaryGreen.copy(alpha = 0.15f),
+                                        CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Cloud,
+                                    contentDescription = "Voice Internet Access",
+                                    tint = if (isVoiceInternetAllowed) AssetGreen else PrimaryGreen,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Voice Internet Access", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                Text(
+                                    text = if (isVoiceInternetAllowed)
+                                        "Choice: YES • Cloud speech recognition enabled for maximum accuracy."
+                                    else
+                                        "Choice: NO • Strictly 100% offline speech recognition without internet.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = if (isVoiceInternetAllowed) AssetGreen.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
+                            ) {
+                                Text(
+                                    text = if (isVoiceInternetAllowed) "YES (Online)" else "NO (Offline)",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isVoiceInternetAllowed) AssetGreen else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // User Choice YES / NO Chips
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FilterChip(
+                                selected = isVoiceInternetAllowed,
+                                onClick = {
+                                    viewModel.authManager.setVoiceInternetAllowed(true)
+                                    isVoiceInternetAllowed = true
+                                    Toast.makeText(context, "Internet access allowed for Voice Control (Yes)", Toast.LENGTH_SHORT).show()
+                                },
+                                label = { Text("YES (Allow Internet)") },
+                                leadingIcon = {
+                                    if (isVoiceInternetAllowed) {
+                                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp), tint = AssetGreen)
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                            FilterChip(
+                                selected = !isVoiceInternetAllowed,
+                                onClick = {
+                                    viewModel.authManager.setVoiceInternetAllowed(false)
+                                    isVoiceInternetAllowed = false
+                                    Toast.makeText(context, "Internet access disabled for Voice Control (No - Offline only)", Toast.LENGTH_SHORT).show()
+                                },
+                                label = { Text("NO (100% Offline)") },
+                                leadingIcon = {
+                                    if (!isVoiceInternetAllowed) {
+                                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Restricted ONLY to voice recognizer. Financial data stays offline.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "🔒 Zero Financial Cloud Tracking: Internet access is restricted EXCLUSIVELY to speech recognition if enabled. Financial ledger, balances, assets, and liabilities remain 100% offline on your device.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
         // Data & Backup Card
         Card(
             shape = RoundedCornerShape(18.dp),
@@ -339,6 +575,75 @@ fun SettingsScreen(
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Data & Backup", style = MaterialTheme.typography.labelLarge, color = PrimaryGreen, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(10.dp))
+
+                // Offline Reinstall Recovery Box (Survives APK Uninstall/Reinstall)
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = PrimaryGreen.copy(alpha = 0.08f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Security,
+                                contentDescription = null,
+                                tint = PrimaryGreen,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Reinstall Data Recovery (100% Offline)",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = PrimaryGreen
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Your entered financial accounts, balances, and records are safely preserved in offline device storage (Downloads/FamilyNetWorth). Even if you uninstall this APK and reinstall it later, your data is never deleted and recovers completely offline.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        offlineBackupSummary?.let { summary ->
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "📁 Saved Backup: ${summary.itemCount} accounts, ${summary.reminderCount} reminders (${summary.formattedDate})",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                color = PrimaryGreenDark
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.triggerManualOfflineBackup { success, msg ->
+                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Save Backup", style = MaterialTheme.typography.labelSmall)
+                            }
+                            Button(
+                                onClick = {
+                                    viewModel.restoreFromOfflineBackup { success, msg ->
+                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Recover Data", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 SettingsRow(
                     icon = Icons.Default.Share,
@@ -511,3 +816,88 @@ fun SettingsToggleRow(
         )
     }
 }
+
+@Composable
+fun PermissionStatusRow(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    isGranted: Boolean,
+    onRequestPermission: () -> Unit,
+    onAction: () -> Unit,
+    actionButtonLabel: String
+) {
+    Card(
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(38.dp)
+                        .background(if (isGranted) AssetGreen.copy(alpha = 0.15f) else PrimaryGreen.copy(alpha = 0.15f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = title,
+                        tint = if (isGranted) AssetGreen else PrimaryGreen,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                    Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = if (isGranted) AssetGreen.copy(alpha = 0.15f) else LiabilityRed.copy(alpha = 0.15f)
+                ) {
+                    Text(
+                        text = if (isGranted) "Granted" else "Needed",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isGranted) AssetGreen else LiabilityRed,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (!isGranted) {
+                    Button(
+                        onClick = onRequestPermission,
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("Grant Permission", style = MaterialTheme.typography.labelSmall)
+                    }
+                } else {
+                    Button(
+                        onClick = onAction,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryGreen.copy(alpha = 0.15f),
+                            contentColor = PrimaryGreen
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(actionButtonLabel, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+

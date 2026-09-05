@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -32,6 +34,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.ui.screens.AboutAppScreen
 import com.example.ui.screens.AnalyticsScreen
 import com.example.ui.screens.AssetsListScreen
@@ -47,6 +54,7 @@ import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.SettingsSubScreen
 import com.example.ui.screens.SplashScreen
 import com.example.ui.screens.TermsOfServiceScreen
+import com.example.data.notification.NotificationHelper
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.PrimaryGreen
 import com.example.ui.viewmodel.NetWorthViewModel
@@ -57,6 +65,7 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+        NotificationHelper.initNotificationChannel(this)
 
         setContent {
             MyApplicationTheme {
@@ -106,7 +115,9 @@ fun MainAppContent(viewModel: NetWorthViewModel) {
                 contentWindowInsets = WindowInsets.statusBars,
                 bottomBar = {
                     NavigationBar(
-                        windowInsets = WindowInsets.navigationBars
+                        windowInsets = WindowInsets.navigationBars,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 3.dp
                     ) {
                         NavTab.entries.forEach { tab ->
                             val isSelected = currentTab == tab
@@ -120,16 +131,38 @@ fun MainAppContent(viewModel: NetWorthViewModel) {
                             }
                             NavigationBarItem(
                                 selected = isSelected,
-                                onClick = { currentTab = tab },
+                                onClick = {
+                                    currentSubScreen = null
+                                    currentTab = tab
+                                },
                                 icon = {
                                     Icon(
                                         imageVector = tabIcon,
-                                        contentDescription = tab.title
+                                        contentDescription = tab.title,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 },
-                                label = { Text(tab.title) },
+                                label = {
+                                    Text(
+                                        text = tab.title,
+                                        maxLines = 1,
+                                        softWrap = false,
+                                        overflow = TextOverflow.Ellipsis,
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontSize = 10.sp,
+                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                            letterSpacing = (-0.3).sp
+                                        ),
+                                        textAlign = TextAlign.Center
+                                    )
+                                },
+                                alwaysShowLabel = true,
                                 colors = NavigationBarItemDefaults.colors(
-                                    indicatorColor = PrimaryGreen.copy(alpha = 0.2f)
+                                    indicatorColor = PrimaryGreen.copy(alpha = 0.18f),
+                                    selectedIconColor = PrimaryGreen,
+                                    selectedTextColor = PrimaryGreen,
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                                 )
                             )
                         }
@@ -148,9 +181,9 @@ fun MainAppContent(viewModel: NetWorthViewModel) {
                                 when (destination) {
                                     "Assets" -> currentTab = NavTab.ASSETS
                                     "Ledger" -> currentTab = NavTab.LEDGER
-                                    "Reminders" -> currentSubScreen = SettingsSubScreen.REMINDERS
-                                    "Analytics" -> currentTab = NavTab.ANALYTICS
-                                    "Settings" -> currentTab = NavTab.SETTINGS
+                                    "Reminders", "Reminder" -> currentTab = NavTab.REMINDERS
+                                    "Analytics", "Analytic" -> currentTab = NavTab.ANALYTICS
+                                    "Settings", "Setting" -> currentTab = NavTab.SETTINGS
                                     else -> currentTab = NavTab.DASHBOARD
                                 }
                             }
@@ -161,7 +194,13 @@ fun MainAppContent(viewModel: NetWorthViewModel) {
                         NavTab.REMINDERS -> RemindersScreen(viewModel = viewModel)
                         NavTab.SETTINGS -> SettingsScreen(
                             viewModel = viewModel,
-                            onNavigateToSubScreen = { sub -> currentSubScreen = sub },
+                            onNavigateToSubScreen = { sub ->
+                                if (sub == SettingsSubScreen.REMINDERS) {
+                                    currentTab = NavTab.REMINDERS
+                                } else {
+                                    currentSubScreen = sub
+                                }
+                            },
                             onLogout = { currentTab = NavTab.DASHBOARD }
                         )
                     }

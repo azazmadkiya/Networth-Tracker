@@ -9,8 +9,11 @@ import com.example.data.model.FinancialReminder
 import com.example.data.model.ItemCategory
 import com.example.data.model.LedgerEntry
 import com.example.data.model.NetWorthSnapshot
+import com.example.data.backup.OfflineBackupManager
+import com.example.data.backup.OfflineBackupSummary
 import com.example.data.repository.NetWorthRepository
 import com.example.data.security.AuthManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -34,12 +37,12 @@ class NetWorthViewModel(application: Application) : AndroidViewModel(application
     private val _isLoggedIn = MutableStateFlow(authManager.isLoggedIn())
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
+    val offlineBackupSummary = MutableStateFlow<OfflineBackupSummary?>(null)
+    val recoveryBannerMessage = MutableStateFlow<String?>(null)
+
     val selectedOwnerFilter = MutableStateFlow("All")
     val selectedCategoryFilter = MutableStateFlow("All")
     val searchQuery = MutableStateFlow("")
-
-    val isLiveStockTracking = MutableStateFlow(false)
-    private val liveTickCount = MutableStateFlow(0)
 
     val allItems: StateFlow<List<FinancialItem>> = repository.allItems.stateIn(
         viewModelScope,
@@ -65,37 +68,7 @@ class NetWorthViewModel(application: Application) : AndroidViewModel(application
         emptyList()
     )
 
-    // Stock price simulator loop
-    init {
-        viewModelScope.launch {
-            while (true) {
-                delay(3000)
-                if (isLiveStockTracking.value) {
-                    liveTickCount.value += 1
-                }
-            }
-        }
-    }
-
-    val liveItems: StateFlow<List<FinancialItem>> = combine(
-        allItems,
-        liveTickCount,
-        isLiveStockTracking
-    ) { items, tick, isTracking ->
-        if (!isTracking || tick == 0) {
-            items
-        } else {
-            items.map { item ->
-                if (item.category == ItemCategory.SHARE_MARKET.displayName) {
-                    val deltaPercent = (Random.nextDouble(-0.8, 0.9) / 100.0)
-                    val newCurrent = (item.currentValue * (1.0 + deltaPercent)).coerceAtLeast(1.0)
-                    item.copy(currentValue = newCurrent)
-                } else {
-                    item
-                }
-            }
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val liveItems: StateFlow<List<FinancialItem>> = allItems
 
     val filteredItems: StateFlow<List<FinancialItem>> = combine(
         liveItems,
@@ -344,5 +317,86 @@ class NetWorthViewModel(application: Application) : AndroidViewModel(application
     fun logout() {
         authManager.logout()
         _isLoggedIn.value = false
+    }
+
+    init {
+        checkAndAutoRecoverOfflineData()
+        observeAndAutoPersistOfflineBackup()
+    }
+
+    fun checkAndAutoRecoverOfflineData() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val app = getApplication<Application>()
+            val summary = OfflineBackupManager.getOfflineBackupSummary(app)
+            offlineBackupSummary.value = summary
+
+            val count = repository.getItemCount()
+            if (count == 0 && summary != null && summary.itemCount > 0) {
+                val json = OfflineBackupManager.readOfflineBackup(app)
+                if (!json.isNullOrBlank()) {
+                    val restored = repository.importFromJson(json, clearExisting = false)
+                    if (restored) {
+                        recoveryBannerMessage.value = "Data Recovered! Restored ${summary.itemCount} accounts from your offline device storage."
+                    }
+                }
+            }
+        }
+    }
+
+    private fun observeAndAutoPersistOfflineBackup() {
+        viewModelScope.launch(Dispatchers.IO) {
+            combine(allItems, allLedgerEntries, allReminders) { items, ledger, reminders ->
+                Triple(items, ledger, reminders)
+            }.collect { (items, ledger, reminders) ->
+                if (items.isNotEmpty() || ledger.isNotEmpty() || reminders.isNotEmpty()) {
+                    val json = repository.exportToJson(
+                        items = items,
+                        snapshots = snapshots.value,
+                        ledgerEntries = ledger,
+                        reminders = reminders
+                    )
+                    OfflineBackupManager.saveOfflineBackup(getApplication(), json)
+                    offlineBackupSummary.value = OfflineBackupManager.getOfflineBackupSummary(getApplication())
+                }
+            }
+        }
+    }
+
+    fun triggerManualOfflineBackup(onComplete: (Boolean, String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val json = exportBackupJson()
+            if (json.isNotBlank()) {
+                val success = OfflineBackupManager.saveOfflineBackup(getApplication(), json)
+                val summary = OfflineBackupManager.getOfflineBackupSummary(getApplication())
+                offlineBackupSummary.value = summary
+                onComplete(success, if (success) "Offline backup saved to device storage (Downloads/FamilyNetWorth)!" else "Failed to save offline backup")
+            } else {
+                onComplete(false, "No financial data available to backup")
+            }
+        }
+    }
+
+    fun restoreFromOfflineBackup(onComplete: (Boolean, String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val app = getApplication<Application>()
+            val json = OfflineBackupManager.readOfflineBackup(app)
+            if (!json.isNullOrBlank()) {
+                val success = repository.importFromJson(json, clearExisting = false)
+                if (success) {
+                    val summary = OfflineBackupManager.getOfflineBackupSummary(app)
+                    offlineBackupSummary.value = summary
+                    recoveryBannerMessage.value = "Data recovered from device storage!"
+                    onComplete(true, "Successfully restored ${summary?.itemCount ?: 0} accounts!")
+                } else {
+                    onComplete(false, "Failed to parse offline backup file")
+                }
+            } else {
+                onComplete(false, "No offline backup file found on device storage")
+            }
+        }
+    }
+
+    fun dismissRecoveryBanner() {
+        recoveryBannerMessage.value = null
     }
 }
