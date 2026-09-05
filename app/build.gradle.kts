@@ -11,11 +11,11 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.aistudio.networthtracker.app"
+        applicationId = "com.aistudio.networthtracker.v2"
         minSdk = 24
         targetSdk = 36
-        versionCode = 3
-        versionName = "2.6.0"
+        versionCode = 4
+        versionName = "2.6.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
