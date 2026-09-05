@@ -68,7 +68,13 @@ class MainActivity : FragmentActivity() {
         NotificationHelper.initNotificationChannel(this)
 
         setContent {
-            MyApplicationTheme {
+            val themeMode by viewModel.themeMode.collectAsState()
+            val isDarkTheme = when (themeMode) {
+                "light" -> false
+                "dark" -> true
+                else -> androidx.compose.foundation.isSystemInDarkTheme()
+            }
+            MyApplicationTheme(darkTheme = isDarkTheme) {
                 MainAppContent(viewModel = viewModel)
             }
         }

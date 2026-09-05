@@ -34,6 +34,14 @@ class NetWorthViewModel(application: Application) : AndroidViewModel(application
     )
     val authManager = AuthManager(application)
 
+    private val _themeMode = MutableStateFlow(authManager.getThemeMode())
+    val themeMode: StateFlow<String> = _themeMode.asStateFlow()
+
+    fun setThemeMode(mode: String) {
+        authManager.setThemeMode(mode)
+        _themeMode.value = mode
+    }
+
     private val _isLoggedIn = MutableStateFlow(authManager.isLoggedIn())
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 

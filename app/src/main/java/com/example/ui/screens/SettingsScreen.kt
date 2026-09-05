@@ -5,6 +5,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -32,20 +33,25 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Gavel
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Policy
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Smartphone
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.AlertDialog
@@ -55,6 +61,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -71,6 +78,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -285,6 +293,8 @@ fun SettingsScreen(
         )
     }
 
+    val currentThemeMode by viewModel.themeMode.collectAsState()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -294,10 +304,236 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "Settings & Security",
-            style = MaterialTheme.typography.titleLarge,
+            text = "Settings",
+            style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
+
+        // Instagram Developer Hero Card
+        Card(
+            shape = RoundedCornerShape(22.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://instagram.com/azazmadkiya"))
+                    context.startActivity(intent)
+                },
+            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                Color(0xFF4A56E2), // Vibrant Royal Indigo
+                                Color(0xFF833AB4), // Instagram Purple
+                                Color(0xFFE1306C), // Instagram Pink/Red
+                                Color(0xFFFD1D1D)  // Warm Coral Red
+                            )
+                        )
+                    )
+                    .padding(horizontal = 20.dp, vertical = 22.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Made with privacy in mind by",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.9f)
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "@Azazmadkiya",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = Color.White.copy(alpha = 0.22f),
+                        modifier = Modifier.size(46.dp)
+                    ) {
+                        IconButton(
+                            onClick = {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://instagram.com/azazmadkiya"))
+                                context.startActivity(intent)
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.OpenInNew,
+                                contentDescription = "Open Instagram Profile",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Customisation Section (Theme Switcher)
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(
+                text = "CUSTOMISATION",
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+            )
+
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(18.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = CircleShape,
+                            color = Color(0xFFFFECEE),
+                            modifier = Modifier.size(42.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Palette,
+                                    contentDescription = null,
+                                    tint = Color(0xFFE53935),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(14.dp))
+                        Column {
+                            Text(
+                                text = "Theme",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Follow your phone or choose a fixed appearance.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Theme Selection Segmented Container
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            // System option
+                            val isSystem = currentThemeMode == "system"
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isSystem) MaterialTheme.colorScheme.surface else Color.Transparent,
+                                shadowElevation = if (isSystem) 2.dp else 0.dp,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { viewModel.setThemeMode("system") }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Smartphone,
+                                        contentDescription = null,
+                                        tint = if (isSystem) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "System",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = if (isSystem) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSystem) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            // Light option
+                            val isLight = currentThemeMode == "light"
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isLight) MaterialTheme.colorScheme.surface else Color.Transparent,
+                                shadowElevation = if (isLight) 2.dp else 0.dp,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { viewModel.setThemeMode("light") }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LightMode,
+                                        contentDescription = null,
+                                        tint = if (isLight) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Light",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = if (isLight) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isLight) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+
+                            // Dark option
+                            val isDark = currentThemeMode == "dark"
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (isDark) MaterialTheme.colorScheme.surface else Color.Transparent,
+                                shadowElevation = if (isDark) 2.dp else 0.dp,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { viewModel.setThemeMode("dark") }
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(vertical = 10.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.DarkMode,
+                                        contentDescription = null,
+                                        tint = if (isDark) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Dark",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = if (isDark) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isDark) Color(0xFFE53935) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // Profile & Auth Card
         Card(

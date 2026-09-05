@@ -96,9 +96,11 @@ jobs:
             - **Android App Bundle**: **`NetWorthTracker-v${{ steps.app_version.outputs.VERSION }}-debug.aab`** for Google Play Console / testing.
 
             ### ✨ What's New in v${{ steps.app_version.outputs.VERSION }}:
-            - 📅 **Dedicated Event Reminders**: Added comprehensive financial event scheduling (Tax filing deadlines, Insurance renewals, FD maturities, Portfolio rebalancing, Birthdays/Anniversaries, Property taxes, Vehicle service) with quick presets and live calendar calculations.
+            - 📸 **Instagram Profile Integration**: Direct one-tap card with gradient backdrop linking to **@Azazmadkiya** (`https://instagram.com/azazmadkiya`).
+            - 🎨 **Appearance Customisation**: Interactive System / Light / Dark theme selector with local persistence.
+            - 📅 **Dedicated Event Reminders**: Added financial event scheduling (Tax filing deadlines, Insurance renewals, FD maturities, Portfolio rebalancing, Birthdays/Anniversaries, Property taxes, Vehicle service) with quick presets and calendar calculations.
             - 🔔 **Instant Alert Testing**: One-tap "Test Alert" triggers system notification channels with custom sound, high priority, and countdown badges.
-            - 🧭 **Optimized 6-Tab Navigation Bar**: Fixed bottom bar text wrapping so Dashboard, Assets, Ledger, Analytics, Reminders, and Settings display in a single neat row without awkward line breaks.
+            - 🧭 **Optimized 6-Tab Navigation Bar**: Fixed bottom bar text wrapping so Dashboard, Assets, Ledger, Analytics, Reminders, and Settings display in a single neat row.
             - 🎙️ **Hands-free Voice Assistant**: Speak naturally to add events and reminders (*"Add event reminder Tax Filing in 5 days"*).
             - 🛡️ **Privacy & Biometric Lock**: 100% offline-first Room database, biometric fingerprint/face authentication, and zero third-party trackers.
           files: |

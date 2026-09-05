@@ -14,8 +14,8 @@ android {
         applicationId = "com.aistudio.networthtracker.v2"
         minSdk = 24
         targetSdk = 36
-        versionCode = 4
-        versionName = "2.6.1"
+        versionCode = 5
+        versionName = "2.7.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

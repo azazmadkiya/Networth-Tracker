@@ -14,6 +14,15 @@ class AuthManager(context: Context) {
         private const val KEY_HAS_ACCOUNT = "has_account"
         private const val KEY_VOICE_INTERNET_ACCESS = "voice_internet_access"
         private const val KEY_VOICE_INTERNET_DECIDED = "voice_internet_decided"
+        private const val KEY_THEME_MODE = "theme_mode" // "system", "light", "dark"
+    }
+
+    fun getThemeMode(): String {
+        return prefs.getString(KEY_THEME_MODE, "system") ?: "system"
+    }
+
+    fun setThemeMode(mode: String) {
+        prefs.edit().putString(KEY_THEME_MODE, mode).apply()
     }
 
     fun hasAccount(): Boolean {
