@@ -72,7 +72,9 @@ fun AddEditItemDialog(
     var stockCmpStr by remember { mutableStateOf("") }
 
     val isEditing = initialItem != null
-    val isStockCategory = selectedCategory.equals(ItemCategory.SHARE_MARKET.displayName, ignoreCase = true)
+    val isInvestmentCategory = selectedCategory.equals(ItemCategory.SHARE_MARKET.displayName, ignoreCase = true) ||
+                               selectedCategory.equals(ItemCategory.MUTUAL_FUNDS.displayName, ignoreCase = true) ||
+                               selectedCategory.equals(ItemCategory.IPO.displayName, ignoreCase = true)
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -92,7 +94,7 @@ fun AddEditItemDialog(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (isStockCategory) {
+                    if (isInvestmentCategory) {
                         Icon(
                             imageVector = Icons.Default.ShowChart,
                             contentDescription = null,
@@ -104,7 +106,7 @@ fun AddEditItemDialog(
                     Text(
                         text = when {
                             isEditing -> "Edit Financial Item"
-                            isStockCategory -> "Add Stock / Share Entry"
+                            isInvestmentCategory -> "Add Investment Entry"
                             else -> "Add Financial Item"
                         },
                         style = MaterialTheme.typography.titleLarge,
@@ -119,10 +121,10 @@ fun AddEditItemDialog(
                     value = title,
                     onValueChange = { title = it },
                     label = { 
-                        Text(if (isStockCategory) "Stock / Company / Symbol *" else "Title / Asset Name *") 
+                        Text(if (isInvestmentCategory) "Asset / Company / Symbol *" else "Title / Asset Name *") 
                     },
                     placeholder = { 
-                        Text(if (isStockCategory) "e.g. Reliance Industries, TCS, TATA MOTORS" else "e.g. HDFC Salary, Reliance Stock") 
+                        Text(if (isInvestmentCategory) "e.g. Reliance, SBI MF, LIC IPO" else "e.g. HDFC Salary, Reliance Stock") 
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
@@ -135,8 +137,8 @@ fun AddEditItemDialog(
                     OutlinedTextField(
                         value = institution,
                         onValueChange = { institution = it },
-                        label = { Text(if (isStockCategory) "Broker / Demat" else "Institution / Broker") },
-                        placeholder = { Text(if (isStockCategory) "Zerodha, Groww, Angel One" else "e.g. Zerodha, SBI") },
+                        label = { Text(if (isInvestmentCategory) "Broker / Demat" else "Institution / Broker") },
+                        placeholder = { Text(if (isInvestmentCategory) "Zerodha, Groww, Angel One" else "e.g. Zerodha, SBI") },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp)
                     )
@@ -144,8 +146,8 @@ fun AddEditItemDialog(
                     OutlinedTextField(
                         value = accountNumber,
                         onValueChange = { accountNumber = it },
-                        label = { Text(if (isStockCategory) "Qty / Folio" else "Account / Folio") },
-                        placeholder = { Text(if (isStockCategory) "e.g. 50 shares" else "e.g. ••4829") },
+                        label = { Text(if (isInvestmentCategory) "Qty / Folio" else "Account / Folio") },
+                        placeholder = { Text(if (isInvestmentCategory) "e.g. 50 shares" else "e.g. ••4829") },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp)
                     )
@@ -154,7 +156,7 @@ fun AddEditItemDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 // Stock Quick Auto-Calculator (if Share Market category is selected)
-                if (isStockCategory) {
+                if (isInvestmentCategory) {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
@@ -170,7 +172,7 @@ fun AddEditItemDialog(
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Stock Calculator (Optional)",
+                                    text = "Investment Calculator (Optional)",
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = PrimaryGreen
@@ -256,7 +258,7 @@ fun AddEditItemDialog(
                     OutlinedTextField(
                         value = currentValueStr,
                         onValueChange = { currentValueStr = it },
-                        label = { Text(if (isStockCategory) "Current Total Value (₹) *" else "Current Value (₹) *") },
+                        label = { Text(if (isInvestmentCategory) "Current Total Value (₹) *" else "Current Value (₹) *") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp)
@@ -265,7 +267,7 @@ fun AddEditItemDialog(
                     OutlinedTextField(
                         value = investedValueStr,
                         onValueChange = { investedValueStr = it },
-                        label = { Text(if (isStockCategory) "Total Buy/Invested (₹)" else "Invested Value (₹)") },
+                        label = { Text(if (isInvestmentCategory) "Total Buy/Invested (₹)" else "Invested Value (₹)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp)
@@ -351,9 +353,9 @@ fun AddEditItemDialog(
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
-                    label = { Text(if (isStockCategory) "Stock Strategy / Notes" else "Notes / Strategy") },
+                    label = { Text(if (isInvestmentCategory) "Investment Strategy / Notes" else "Notes / Strategy") },
                     placeholder = { 
-                        Text(if (isStockCategory) "e.g. Long-term bluechip, Target ₹3500" else "e.g. Long-term hold, 10k monthly SIP") 
+                        Text(if (isInvestmentCategory) "e.g. Long-term bluechip, Target ₹3500" else "e.g. Long-term hold, 10k monthly SIP") 
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
@@ -398,7 +400,7 @@ fun AddEditItemDialog(
                         ),
                         enabled = title.isNotBlank()
                     ) {
-                        Text(if (isEditing) "Update Item" else if (isStockCategory) "Save Stock" else "Save Item")
+                        Text(if (isEditing) "Update Item" else if (isInvestmentCategory) "Save Investment" else "Save Item")
                     }
                 }
             }

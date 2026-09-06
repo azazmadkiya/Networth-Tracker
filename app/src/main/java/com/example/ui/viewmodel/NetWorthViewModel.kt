@@ -121,7 +121,9 @@ class NetWorthViewModel(application: Application) : AndroidViewModel(application
             } else {
                 totalAssets += item.currentValue
                 totalInvested += item.investedValue
-                if (item.category == ItemCategory.SHARE_MARKET.displayName) {
+                if (item.category == ItemCategory.SHARE_MARKET.displayName ||
+                    item.category == ItemCategory.MUTUAL_FUNDS.displayName ||
+                    item.category == ItemCategory.IPO.displayName) {
                     totalStockWorth += item.currentValue
                     totalStockInvested += item.investedValue
                 }
@@ -175,7 +177,11 @@ class NetWorthViewModel(application: Application) : AndroidViewModel(application
             val liab = ownerItems.filter { it.isLiability }.sumOf { it.currentValue }
             val nw = assets - liab
             val pct = if (totalAssetsAll > 0.0) ((assets / totalAssetsAll) * 100.0).toFloat() else 0f
-            val stocks = ownerItems.filter { it.category == ItemCategory.SHARE_MARKET.displayName }
+            val stocks = ownerItems.filter { 
+                it.category == ItemCategory.SHARE_MARKET.displayName ||
+                it.category == ItemCategory.MUTUAL_FUNDS.displayName ||
+                it.category == ItemCategory.IPO.displayName
+            }
             val stockWorth = stocks.sumOf { it.currentValue }
             val stockInvested = stocks.sumOf { it.investedValue }
 
