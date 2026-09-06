@@ -38,6 +38,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -108,6 +110,28 @@ fun AddEditReminderDialog(
     val targetDateFormatted = remember(targetEpochDay) {
         val sdf = SimpleDateFormat("EEEE, dd MMM yyyy", Locale.getDefault())
         sdf.format(Date(targetEpochDay * 86400000L))
+    }
+    
+    val context = LocalContext.current
+    
+    val showDatePicker = {
+        val calendar = java.util.Calendar.getInstance()
+        calendar.timeInMillis = targetEpochDay * 86400000L
+        android.app.DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                val selectedCal = java.util.Calendar.getInstance()
+                selectedCal.set(year, month, dayOfMonth)
+                val selectedEpochDay = selectedCal.timeInMillis / 86400000L
+                val diff = (selectedEpochDay - currentEpochDay).coerceAtLeast(0)
+                dueDaysFromNowStr = diff.toString()
+            },
+            calendar.get(java.util.Calendar.YEAR),
+            calendar.get(java.util.Calendar.MONTH),
+            calendar.get(java.util.Calendar.DAY_OF_MONTH)
+        ).apply {
+            datePicker.minDate = System.currentTimeMillis() - 86400000L
+        }.show()
     }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -292,7 +316,7 @@ fun AddEditReminderDialog(
                 Surface(
                     shape = RoundedCornerShape(10.dp),
                     color = PrimaryGreen.copy(alpha = 0.1f),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().clickable { showDatePicker() }
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -306,7 +330,7 @@ fun AddEditReminderDialog(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Target Date: $targetDateFormatted (${dueDaysFromNowStr.ifBlank { "0" }} days)",
+                            text = "Target Date: $targetDateFormatted (${dueDaysFromNowStr.ifBlank { "0" }} days) (Tap to change)",
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = PrimaryGreen

@@ -88,6 +88,7 @@ import com.example.data.notification.NotificationHelper
 import com.example.data.security.BiometricAuthHelper
 import com.example.data.security.BiometricStatus
 import com.example.data.security.findFragmentActivity
+import com.example.ui.components.FirstLaunchPermissionsDialog
 import com.example.ui.components.VoiceAssistantDialog
 import com.example.ui.theme.AssetGreen
 import com.example.ui.theme.LiabilityRed
@@ -142,6 +143,7 @@ fun SettingsScreen(
 
     var showClearDataDialog by remember { mutableStateOf(false) }
     var showVoiceDialog by remember { mutableStateOf(false) }
+    var showPermissionsDialog by remember { mutableStateOf(false) }
 
     var hasNotificationPermission by remember {
         mutableStateOf(NotificationHelper.hasNotificationPermission(context))
@@ -175,6 +177,16 @@ fun SettingsScreen(
         } else {
             Toast.makeText(context, "Microphone permission not granted.", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    if (showPermissionsDialog) {
+        FirstLaunchPermissionsDialog(
+            onDismiss = {
+                showPermissionsDialog = false
+                hasNotificationPermission = NotificationHelper.hasNotificationPermission(context)
+                hasMicPermission = NotificationHelper.hasMicrophonePermission(context)
+            }
+        )
     }
 
     if (showVoiceDialog) {
@@ -636,10 +648,11 @@ fun SettingsScreen(
                     )
                     Surface(
                         shape = RoundedCornerShape(8.dp),
-                        color = if (hasNotificationPermission && hasMicPermission) AssetGreen.copy(alpha = 0.15f) else PrimaryGreen.copy(alpha = 0.1f)
+                        color = if (hasNotificationPermission && hasMicPermission) AssetGreen.copy(alpha = 0.15f) else PrimaryGreen.copy(alpha = 0.1f),
+                        modifier = Modifier.clickable { showPermissionsDialog = true }
                     ) {
                         Text(
-                            text = if (hasNotificationPermission && hasMicPermission) "All Granted" else "Action Available",
+                            text = if (hasNotificationPermission && hasMicPermission) "All Granted • Review" else "Permissions Setup",
                             style = MaterialTheme.typography.labelSmall,
                             color = if (hasNotificationPermission && hasMicPermission) AssetGreen else PrimaryGreen,
                             fontWeight = FontWeight.Bold,

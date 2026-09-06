@@ -1,6 +1,8 @@
 package com.example.ui.screens
 
 import android.Manifest
+import android.content.Intent
+import android.provider.CalendarContract
 import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -522,6 +524,7 @@ fun EventReminderCard(
     onDelete: () -> Unit,
     onSendNotification: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val daysRemaining = reminder.dueDateEpochDay - currentEpochDay
     val isPast = daysRemaining < 0 && !reminder.isCompleted
     val isToday = daysRemaining == 0L && !reminder.isCompleted
@@ -728,6 +731,22 @@ fun EventReminderCard(
                         )
                     }
 
+                    IconButton(onClick = {
+                        val intent = Intent(Intent.ACTION_INSERT).apply {
+                            data = CalendarContract.Events.CONTENT_URI
+                            putExtra(CalendarContract.Events.TITLE, reminder.title)
+                            val startTime = reminder.dueDateEpochDay * 86400000L
+                            putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, startTime)
+                            putExtra(CalendarContract.EXTRA_EVENT_END_TIME, startTime + 86400000L)
+                            putExtra(CalendarContract.EXTRA_EVENT_ALL_DAY, true)
+                            if (reminder.notes.isNotBlank()) putExtra(CalendarContract.Events.DESCRIPTION, reminder.notes)
+                            if (reminder.associatedAccount.isNotBlank()) putExtra(CalendarContract.Events.EVENT_LOCATION, reminder.associatedAccount)
+                        }
+                        context.startActivity(intent)
+                    }, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Event, contentDescription = "Add to Calendar", tint = AssetGreen, modifier = Modifier.size(18.dp))
+                    }
+
                     IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(18.dp))
                     }
@@ -750,6 +769,7 @@ fun ReminderCard(
     onDelete: () -> Unit,
     onSendNotification: () -> Unit
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val daysRemaining = reminder.dueDateEpochDay - currentEpochDay
     val isOverdue = daysRemaining < 0 && !reminder.isCompleted
     val isDueToday = daysRemaining == 0L && !reminder.isCompleted
@@ -865,6 +885,21 @@ fun ReminderCard(
                 Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                     IconButton(onClick = onSendNotification, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Default.Notifications, contentDescription = "Test Notification Alert", tint = PrimaryGreen, modifier = Modifier.size(18.dp))
+                    }
+                    IconButton(onClick = {
+                        val intent = Intent(Intent.ACTION_INSERT).apply {
+                            data = CalendarContract.Events.CONTENT_URI
+                            putExtra(CalendarContract.Events.TITLE, reminder.title)
+                            val startTime = reminder.dueDateEpochDay * 86400000L
+                            putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, startTime)
+                            putExtra(CalendarContract.EXTRA_EVENT_END_TIME, startTime + 86400000L)
+                            putExtra(CalendarContract.EXTRA_EVENT_ALL_DAY, true)
+                            if (reminder.notes.isNotBlank()) putExtra(CalendarContract.Events.DESCRIPTION, reminder.notes)
+                            if (reminder.associatedAccount.isNotBlank()) putExtra(CalendarContract.Events.EVENT_LOCATION, reminder.associatedAccount)
+                        }
+                        context.startActivity(intent)
+                    }, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Event, contentDescription = "Add to Calendar", tint = PrimaryGreen, modifier = Modifier.size(18.dp))
                     }
                     IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(18.dp))

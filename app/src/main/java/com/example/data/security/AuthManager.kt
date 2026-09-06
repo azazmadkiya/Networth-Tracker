@@ -9,12 +9,26 @@ class AuthManager(context: Context) {
     companion object {
         private const val KEY_USER_ID = "stored_user_id"
         private const val KEY_PASSWORD = "stored_password"
+        private const val KEY_APP_LOCK_PIN = "app_lock_pin"
         private const val KEY_IS_LOGGED_IN = "is_logged_in"
         private const val KEY_BIOMETRIC_ENABLED = "biometric_enabled"
         private const val KEY_HAS_ACCOUNT = "has_account"
         private const val KEY_VOICE_INTERNET_ACCESS = "voice_internet_access"
         private const val KEY_VOICE_INTERNET_DECIDED = "voice_internet_decided"
         private const val KEY_THEME_MODE = "theme_mode" // "system", "light", "dark"
+        private const val KEY_PERMISSIONS_PROMPTED = "initial_permissions_prompted"
+    }
+
+    fun getAppLockPin(): String? {
+        return prefs.getString(KEY_APP_LOCK_PIN, null)
+    }
+
+    fun setAppLockPin(pin: String) {
+        prefs.edit().putString(KEY_APP_LOCK_PIN, pin).apply()
+    }
+
+    fun isAppLockEnabled(): Boolean {
+        return !getAppLockPin().isNullOrEmpty()
     }
 
     fun getThemeMode(): String {
@@ -83,6 +97,7 @@ class AuthManager(context: Context) {
 
     fun logout() {
         setLoggedIn(false)
+        prefs.edit().remove(KEY_APP_LOCK_PIN).apply()
     }
 
     fun isBiometricEnabled(): Boolean {
@@ -106,5 +121,13 @@ class AuthManager(context: Context) {
 
     fun hasUserDecidedVoiceInternet(): Boolean {
         return prefs.getBoolean(KEY_VOICE_INTERNET_DECIDED, false)
+    }
+
+    fun hasShownInitialPermissionsPrompt(): Boolean {
+        return prefs.getBoolean(KEY_PERMISSIONS_PROMPTED, false)
+    }
+
+    fun setHasShownInitialPermissionsPrompt(prompted: Boolean) {
+        prefs.edit().putBoolean(KEY_PERMISSIONS_PROMPTED, prompted).apply()
     }
 }

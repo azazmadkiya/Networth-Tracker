@@ -44,6 +44,13 @@ class NetWorthViewModel(application: Application) : AndroidViewModel(application
 
     private val _isLoggedIn = MutableStateFlow(authManager.isLoggedIn())
     val isLoggedIn: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
+    
+    private val _isAppUnlocked = MutableStateFlow(false)
+    val isAppUnlocked: StateFlow<Boolean> = _isAppUnlocked.asStateFlow()
+
+    fun setAppUnlocked(unlocked: Boolean) {
+        _isAppUnlocked.value = unlocked
+    }
 
     val offlineBackupSummary = MutableStateFlow<OfflineBackupSummary?>(null)
     val recoveryBannerMessage = MutableStateFlow<String?>(null)

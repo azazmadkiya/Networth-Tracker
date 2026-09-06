@@ -39,8 +39,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.ui.components.FirstLaunchPermissionsDialog
 import com.example.ui.screens.AboutAppScreen
 import com.example.ui.screens.AnalyticsScreen
+import com.example.ui.screens.AppLockScreen
 import com.example.ui.screens.AssetsListScreen
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.DataSafetyScreen
@@ -79,14 +81,35 @@ class MainActivity : FragmentActivity() {
             }
         }
     }
+
+    override fun onStop() {
+        super.onStop()
+        viewModel.setAppUnlocked(false)
+    }
 }
 
 @Composable
 fun MainAppContent(viewModel: NetWorthViewModel) {
     var showSplash by remember { mutableStateOf(true) }
     val isLoggedIn by viewModel.isLoggedIn.collectAsState()
+    val isAppUnlocked by viewModel.isAppUnlocked.collectAsState()
+    var hasAppLockPin by remember { mutableStateOf(viewModel.authManager.isAppLockEnabled()) }
+
     var currentTab by remember { mutableStateOf(NavTab.DASHBOARD) }
     var currentSubScreen by remember { mutableStateOf<SettingsSubScreen?>(null) }
+
+    var showFirstLaunchPermissionsDialog by remember {
+        mutableStateOf(!viewModel.authManager.hasShownInitialPermissionsPrompt())
+    }
+
+    if (showFirstLaunchPermissionsDialog && !showSplash) {
+        FirstLaunchPermissionsDialog(
+            onDismiss = {
+                viewModel.authManager.setHasShownInitialPermissionsPrompt(true)
+                showFirstLaunchPermissionsDialog = false
+            }
+        )
+    }
 
     when {
         showSplash -> {
@@ -95,120 +118,149 @@ fun MainAppContent(viewModel: NetWorthViewModel) {
         !isLoggedIn -> {
             LoginScreen(
                 authManager = viewModel.authManager,
-                onLoginSuccess = { viewModel.setLoggedIn(true) }
+                onLoginSuccess = { 
+                    viewModel.setLoggedIn(true)
+                    hasAppLockPin = viewModel.authManager.isAppLockEnabled()
+                    viewModel.setAppUnlocked(true)
+                }
             )
         }
-        currentSubScreen != null -> {
-            BackHandler {
-                currentSubScreen = null
-            }
-            when (currentSubScreen) {
-                SettingsSubScreen.REMINDERS -> RemindersScreen(viewModel = viewModel)
-                SettingsSubScreen.PRIVACY_POLICY -> PrivacyPolicyScreen(onNavigateBack = { currentSubScreen = null })
-                SettingsSubScreen.TERMS_OF_SERVICE -> TermsOfServiceScreen(onNavigateBack = { currentSubScreen = null })
-                SettingsSubScreen.DATA_SAFETY -> DataSafetyScreen(onNavigateBack = { currentSubScreen = null })
-                SettingsSubScreen.PLAY_COMPLIANCE -> PlayComplianceScreen(onNavigateBack = { currentSubScreen = null })
-                SettingsSubScreen.OPEN_SOURCE_LICENSES -> OpenSourceLicensesScreen(onNavigateBack = { currentSubScreen = null })
-                SettingsSubScreen.ABOUT -> AboutAppScreen(
-                    onNavigateBack = { currentSubScreen = null },
-                    onOpenLicenses = { currentSubScreen = SettingsSubScreen.OPEN_SOURCE_LICENSES }
-                )
-                null -> {}
-            }
+        !hasAppLockPin -> {
+            AppLockScreen(
+                isSetupMode = true,
+                onPinSet = { pin -> 
+                    viewModel.authManager.setAppLockPin(pin)
+                    hasAppLockPin = true
+                    viewModel.setAppUnlocked(true)
+                },
+                onUnlock = { }
+            )
+        }
+        !isAppUnlocked -> {
+            AppLockScreen(
+                isSetupMode = false,
+                expectedPin = viewModel.authManager.getAppLockPin(),
+                onPinSet = { },
+                onUnlock = { viewModel.setAppUnlocked(true) },
+                onLogout = {
+                    viewModel.authManager.logout()
+                    hasAppLockPin = false
+                    viewModel.setLoggedIn(false)
+                }
+            )
         }
         else -> {
-            Scaffold(
-                contentWindowInsets = WindowInsets.statusBars,
-                bottomBar = {
-                    NavigationBar(
-                        windowInsets = WindowInsets.navigationBars,
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        tonalElevation = 3.dp
-                    ) {
-                        NavTab.entries.forEach { tab ->
-                            val isSelected = currentTab == tab
-                            val tabIcon = when (tab) {
-                                NavTab.DASHBOARD -> Icons.Default.Dashboard
-                                NavTab.ASSETS -> Icons.Default.AccountBalance
-                                NavTab.LEDGER -> Icons.Default.ReceiptLong
-                                NavTab.ANALYTICS -> Icons.Default.BarChart
-                                NavTab.REMINDERS -> Icons.Default.Notifications
-                                NavTab.SETTINGS -> Icons.Default.Settings
-                            }
-                            NavigationBarItem(
-                                selected = isSelected,
-                                onClick = {
-                                    currentSubScreen = null
-                                    currentTab = tab
-                                },
-                                icon = {
-                                    Icon(
-                                        imageVector = tabIcon,
-                                        contentDescription = tab.title,
-                                        modifier = Modifier.size(20.dp)
+            if (currentSubScreen != null) {
+                BackHandler {
+                    currentSubScreen = null
+                }
+                when (currentSubScreen) {
+                    SettingsSubScreen.REMINDERS -> RemindersScreen(viewModel = viewModel)
+                    SettingsSubScreen.PRIVACY_POLICY -> PrivacyPolicyScreen(onNavigateBack = { currentSubScreen = null })
+                    SettingsSubScreen.TERMS_OF_SERVICE -> TermsOfServiceScreen(onNavigateBack = { currentSubScreen = null })
+                    SettingsSubScreen.DATA_SAFETY -> DataSafetyScreen(onNavigateBack = { currentSubScreen = null })
+                    SettingsSubScreen.PLAY_COMPLIANCE -> PlayComplianceScreen(onNavigateBack = { currentSubScreen = null })
+                    SettingsSubScreen.OPEN_SOURCE_LICENSES -> OpenSourceLicensesScreen(onNavigateBack = { currentSubScreen = null })
+                    SettingsSubScreen.ABOUT -> AboutAppScreen(
+                        onNavigateBack = { currentSubScreen = null },
+                        onOpenLicenses = { currentSubScreen = SettingsSubScreen.OPEN_SOURCE_LICENSES }
+                    )
+                    null -> {}
+                }
+            } else {
+                Scaffold(
+                    contentWindowInsets = WindowInsets.statusBars,
+                    bottomBar = {
+                        NavigationBar(
+                            windowInsets = WindowInsets.navigationBars,
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 3.dp
+                        ) {
+                            NavTab.entries.forEach { tab ->
+                                val isSelected = currentTab == tab
+                                val tabIcon = when (tab) {
+                                    NavTab.DASHBOARD -> Icons.Default.Dashboard
+                                    NavTab.ASSETS -> Icons.Default.AccountBalance
+                                    NavTab.LEDGER -> Icons.Default.ReceiptLong
+                                    NavTab.ANALYTICS -> Icons.Default.BarChart
+                                    NavTab.REMINDERS -> Icons.Default.Notifications
+                                    NavTab.SETTINGS -> Icons.Default.Settings
+                                }
+                                NavigationBarItem(
+                                    selected = isSelected,
+                                    onClick = {
+                                        currentSubScreen = null
+                                        currentTab = tab
+                                    },
+                                    icon = {
+                                        Icon(
+                                            imageVector = tabIcon,
+                                            contentDescription = tab.title,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            text = tab.title,
+                                            maxLines = 1,
+                                            softWrap = false,
+                                            overflow = TextOverflow.Ellipsis,
+                                            style = MaterialTheme.typography.labelSmall.copy(
+                                                fontSize = 10.sp,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                letterSpacing = (-0.3).sp
+                                            ),
+                                            textAlign = TextAlign.Center
+                                        )
+                                    },
+                                    alwaysShowLabel = true,
+                                    colors = NavigationBarItemDefaults.colors(
+                                        indicatorColor = PrimaryGreen.copy(alpha = 0.18f),
+                                        selectedIconColor = PrimaryGreen,
+                                        selectedTextColor = PrimaryGreen,
+                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                                     )
-                                },
-                                label = {
-                                    Text(
-                                        text = tab.title,
-                                        maxLines = 1,
-                                        softWrap = false,
-                                        overflow = TextOverflow.Ellipsis,
-                                        style = MaterialTheme.typography.labelSmall.copy(
-                                            fontSize = 10.sp,
-                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            letterSpacing = (-0.3).sp
-                                        ),
-                                        textAlign = TextAlign.Center
-                                    )
-                                },
-                                alwaysShowLabel = true,
-                                colors = NavigationBarItemDefaults.colors(
-                                    indicatorColor = PrimaryGreen.copy(alpha = 0.18f),
-                                    selectedIconColor = PrimaryGreen,
-                                    selectedTextColor = PrimaryGreen,
-                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
                                 )
-                            )
+                            }
                         }
                     }
-                }
-            ) { padding ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                ) {
-                    when (currentTab) {
-                        NavTab.DASHBOARD -> DashboardScreen(
-                            viewModel = viewModel,
-                            onNavigateToTab = { destination ->
-                                when (destination) {
-                                    "Assets" -> currentTab = NavTab.ASSETS
-                                    "Ledger" -> currentTab = NavTab.LEDGER
-                                    "Reminders", "Reminder" -> currentTab = NavTab.REMINDERS
-                                    "Analytics", "Analytic" -> currentTab = NavTab.ANALYTICS
-                                    "Settings", "Setting" -> currentTab = NavTab.SETTINGS
-                                    else -> currentTab = NavTab.DASHBOARD
+                ) { padding ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                    ) {
+                        when (currentTab) {
+                            NavTab.DASHBOARD -> DashboardScreen(
+                                viewModel = viewModel,
+                                onNavigateToTab = { destination ->
+                                    when (destination) {
+                                        "Assets" -> currentTab = NavTab.ASSETS
+                                        "Ledger" -> currentTab = NavTab.LEDGER
+                                        "Reminders", "Reminder" -> currentTab = NavTab.REMINDERS
+                                        "Analytics", "Analytic" -> currentTab = NavTab.ANALYTICS
+                                        "Settings", "Setting" -> currentTab = NavTab.SETTINGS
+                                        else -> currentTab = NavTab.DASHBOARD
+                                    }
                                 }
-                            }
-                        )
-                        NavTab.ASSETS -> AssetsListScreen(viewModel = viewModel)
-                        NavTab.LEDGER -> LedgerScreen(viewModel = viewModel)
-                        NavTab.ANALYTICS -> AnalyticsScreen(viewModel = viewModel)
-                        NavTab.REMINDERS -> RemindersScreen(viewModel = viewModel)
-                        NavTab.SETTINGS -> SettingsScreen(
-                            viewModel = viewModel,
-                            onNavigateToSubScreen = { sub ->
-                                if (sub == SettingsSubScreen.REMINDERS) {
-                                    currentTab = NavTab.REMINDERS
-                                } else {
-                                    currentSubScreen = sub
-                                }
-                            },
-                            onLogout = { currentTab = NavTab.DASHBOARD }
-                        )
+                            )
+                            NavTab.ASSETS -> AssetsListScreen(viewModel = viewModel)
+                            NavTab.LEDGER -> LedgerScreen(viewModel = viewModel)
+                            NavTab.ANALYTICS -> AnalyticsScreen(viewModel = viewModel)
+                            NavTab.REMINDERS -> RemindersScreen(viewModel = viewModel)
+                            NavTab.SETTINGS -> SettingsScreen(
+                                viewModel = viewModel,
+                                onNavigateToSubScreen = { sub ->
+                                    if (sub == SettingsSubScreen.REMINDERS) {
+                                        currentTab = NavTab.REMINDERS
+                                    } else {
+                                        currentSubScreen = sub
+                                    }
+                                },
+                                onLogout = { currentTab = NavTab.DASHBOARD }
+                            )
+                        }
                     }
                 }
             }
