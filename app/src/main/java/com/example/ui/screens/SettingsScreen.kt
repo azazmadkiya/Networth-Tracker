@@ -49,6 +49,8 @@ import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Policy
+import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Smartphone
@@ -155,6 +157,26 @@ fun SettingsScreen(
         mutableStateOf(viewModel.authManager.isVoiceInternetAllowed())
     }
     val offlineBackupSummary by viewModel.offlineBackupSummary.collectAsState()
+
+    val createDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        uri?.let {
+            viewModel.exportBackupToUri(it, context) { success, msg ->
+                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    val openDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let {
+            viewModel.importBackupFromUri(it, context) { success, msg ->
+                Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -284,12 +306,12 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { showClearDataDialog = false },
             title = { Text("Wipe All Data?") },
-            text = { Text("This will permanently delete all your financial items, ledger entries, reminders, and snapshots. This action cannot be undone.") },
+            text = { Text("This will permanently delete all your financial items, ledger entries, reminders, snapshots, and any device offline backup files. The app will be reset completely to empty.") },
             confirmButton = {
                 Button(
                     onClick = {
                         viewModel.clearAllData()
-                        Toast.makeText(context, "All data wiped", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "All data and offline backups wiped completely", Toast.LENGTH_SHORT).show()
                         showClearDataDialog = false
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = LiabilityRed)
@@ -556,12 +578,7 @@ fun SettingsScreen(
                 Text("Account & Security", style = MaterialTheme.typography.labelLarge, color = PrimaryGreen, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(10.dp))
 
-                SettingsRow(
-                    icon = Icons.Default.Person,
-                    title = "User ID",
-                    subtitle = viewModel.authManager.getStoredUserId().ifEmpty { "Not Set" },
-                    onClick = {}
-                )
+
 
                 SettingsRow(
                     icon = Icons.Default.Key,
@@ -889,15 +906,59 @@ fun SettingsScreen(
                                 Text("Recover Data", style = MaterialTheme.typography.labelSmall)
                             }
                         }
+
+                        if (offlineBackupSummary != null) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            TextButton(
+                                onClick = {
+                                    viewModel.deleteOfflineBackup { success, msg ->
+                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteForever,
+                                    contentDescription = null,
+                                    tint = LiabilityRed,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "Delete Saved Device Backup File",
+                                    color = LiabilityRed,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 SettingsRow(
+                    icon = Icons.Default.Save,
+                    title = "Export to File (Backup)",
+                    subtitle = "Save a .json backup file to your device",
+                    onClick = {
+                        val sdf = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.getDefault())
+                        val fileName = "family_networth_backup_${sdf.format(java.util.Date())}.json"
+                        createDocumentLauncher.launch(fileName)
+                    }
+                )
+
+                SettingsRow(
+                    icon = Icons.Default.Restore,
+                    title = "Import from File (Restore)",
+                    subtitle = "Restore database from a saved .json file",
+                    onClick = { openDocumentLauncher.launch(arrayOf("application/json", "*/*")) }
+                )
+
+                SettingsRow(
                     icon = Icons.Default.Share,
-                    title = "Export Portfolio JSON",
-                    subtitle = "Share or copy full database backup",
+                    title = "Share Portfolio JSON",
+                    subtitle = "Share full database as text via other apps",
                     onClick = {
                         val json = viewModel.exportBackupJson()
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

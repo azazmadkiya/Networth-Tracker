@@ -87,14 +87,18 @@ fun AssetsListScreen(
     }
 
     if (showAddDialog || editingItem != null) {
+        val parties = items
         AddEditItemDialog(
             initialItem = editingItem,
+            parties = parties,
             onDismiss = {
                 showAddDialog = false
                 editingItem = null
             },
-            onSave = { savedItem ->
+            onSave = { savedItem, ledgerEntry, updatedParty ->
                 viewModel.saveFinancialItem(savedItem)
+                updatedParty?.let { viewModel.saveFinancialItem(it) }
+                ledgerEntry?.let { viewModel.postDirectLedgerEntry(it) }
                 showAddDialog = false
                 editingItem = null
                 Toast.makeText(context, "Saved ${savedItem.title}", Toast.LENGTH_SHORT).show()

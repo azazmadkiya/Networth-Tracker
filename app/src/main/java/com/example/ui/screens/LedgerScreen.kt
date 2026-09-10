@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -48,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.data.model.LedgerEntry
 import com.example.ui.components.AddLedgerEntryDialog
+import com.example.ui.components.AddVoucherDialog
 import com.example.ui.components.ShareEntryDialog
 import com.example.ui.components.VoiceAssistantDialog
 import com.example.ui.theme.AssetGreen
@@ -62,9 +64,11 @@ fun LedgerScreen(
 ) {
     val context = LocalContext.current
     val ledgerEntries by viewModel.allLedgerEntries.collectAsState()
+    val items by viewModel.liveItems.collectAsState()
 
     var showVoiceDialog by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
+    var showAddVoucherDialog by remember { mutableStateOf(false) }
     var entryToShare by remember { mutableStateOf<LedgerEntry?>(null) }
     var showSummaryShareDialog by remember { mutableStateOf(false) }
 
@@ -77,17 +81,34 @@ fun LedgerScreen(
     }
 
     if (showAddDialog) {
+        val partyList = items
         AddLedgerEntryDialog(
+            parties = partyList,
             onDismiss = { showAddDialog = false },
-            onSave = { entry ->
+            onSave = { entry, updatedParties ->
                 viewModel.postDirectLedgerEntry(entry)
+                updatedParties.forEach { viewModel.saveFinancialItem(it) }
                 showAddDialog = false
                 Toast.makeText(context, "Transaction recorded", Toast.LENGTH_SHORT).show()
             },
-            onSaveAndShare = { entry ->
+            onSaveAndShare = { entry, updatedParties ->
                 viewModel.postDirectLedgerEntry(entry)
+                updatedParties.forEach { viewModel.saveFinancialItem(it) }
                 showAddDialog = false
                 entryToShare = entry
+            }
+        )
+    }
+
+    if (showAddVoucherDialog) {
+        val parties = items.map { it.title }.distinct().sorted()
+        AddVoucherDialog(
+            parties = parties,
+            onDismiss = { showAddVoucherDialog = false },
+            onSave = { entry ->
+                viewModel.postDirectLedgerEntry(entry)
+                showAddVoucherDialog = false
+                Toast.makeText(context, "Voucher recorded", Toast.LENGTH_SHORT).show()
             }
         )
     }
@@ -125,6 +146,14 @@ fun LedgerScreen(
                     shape = CircleShape
                 ) {
                     Icon(Icons.Default.Mic, contentDescription = "Voice Assistant")
+                }
+                FloatingActionButton(
+                    onClick = { showAddVoucherDialog = true },
+                    containerColor = PrimaryGreen,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shape = CircleShape
+                ) {
+                    Icon(Icons.Default.Receipt, contentDescription = "Add Voucher")
                 }
                 FloatingActionButton(
                     onClick = { showAddDialog = true },

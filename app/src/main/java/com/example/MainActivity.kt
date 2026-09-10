@@ -17,14 +17,28 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.SyncAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.rememberDrawerState
+import kotlinx.coroutines.launch
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.IconButton
+import com.example.ui.components.AppDrawer
+
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +46,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -45,6 +60,7 @@ import com.example.ui.screens.AnalyticsScreen
 import com.example.ui.screens.AppLockScreen
 import com.example.ui.screens.AssetsListScreen
 import com.example.ui.screens.DashboardScreen
+import com.example.ui.screens.PartiesScreen
 import com.example.ui.screens.DataSafetyScreen
 import com.example.ui.screens.LedgerScreen
 import com.example.ui.screens.LoginScreen
@@ -88,6 +104,7 @@ class MainActivity : FragmentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainAppContent(viewModel: NetWorthViewModel) {
     var showSplash by remember { mutableStateOf(true) }
@@ -168,75 +185,52 @@ fun MainAppContent(viewModel: NetWorthViewModel) {
                     null -> {}
                 }
             } else {
-                Scaffold(
-                    contentWindowInsets = WindowInsets.statusBars,
-                    bottomBar = {
-                        NavigationBar(
-                            windowInsets = WindowInsets.navigationBars,
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            tonalElevation = 3.dp
-                        ) {
-                            NavTab.entries.forEach { tab ->
-                                val isSelected = currentTab == tab
-                                val tabIcon = when (tab) {
-                                    NavTab.DASHBOARD -> Icons.Default.Dashboard
-                                    NavTab.ASSETS -> Icons.Default.AccountBalance
-                                    NavTab.LEDGER -> Icons.Default.ReceiptLong
-                                    NavTab.ANALYTICS -> Icons.Default.BarChart
-                                    NavTab.REMINDERS -> Icons.Default.Notifications
-                                    NavTab.SETTINGS -> Icons.Default.Settings
-                                }
-                                NavigationBarItem(
-                                    selected = isSelected,
-                                    onClick = {
-                                        currentSubScreen = null
-                                        currentTab = tab
-                                    },
-                                    icon = {
-                                        Icon(
-                                            imageVector = tabIcon,
-                                            contentDescription = tab.title,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    },
-                                    label = {
-                                        Text(
-                                            text = tab.title,
-                                            maxLines = 1,
-                                            softWrap = false,
-                                            overflow = TextOverflow.Ellipsis,
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                fontSize = 10.sp,
-                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                                letterSpacing = (-0.3).sp
-                                            ),
-                                            textAlign = TextAlign.Center
-                                        )
-                                    },
-                                    alwaysShowLabel = true,
-                                    colors = NavigationBarItemDefaults.colors(
-                                        indicatorColor = PrimaryGreen.copy(alpha = 0.18f),
-                                        selectedIconColor = PrimaryGreen,
-                                        selectedTextColor = PrimaryGreen,
-                                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
-                                    )
-                                )
-                            }
-                        }
+                val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+                val scope = rememberCoroutineScope()
+                
+                ModalNavigationDrawer(
+                    drawerState = drawerState,
+                    drawerContent = {
+                        AppDrawer(
+                            currentTab = currentTab,
+                            onTabSelected = { 
+                                currentSubScreen = null
+                                currentTab = it 
+                            },
+                            onCloseDrawer = { scope.launch { drawerState.close() } }
+                        )
                     }
-                ) { padding ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(padding)
-                    ) {
+                ) {
+                    Scaffold(
+                        contentWindowInsets = WindowInsets.statusBars,
+                        topBar = {
+                            TopAppBar(
+                                title = { Text(currentTab.title, style = MaterialTheme.typography.titleMedium) },
+                                navigationIcon = {
+                                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                        Icon(Icons.Default.Menu, contentDescription = "Menu")
+                                    }
+                                },
+                                colors = TopAppBarDefaults.topAppBarColors(
+                                    containerColor = MaterialTheme.colorScheme.surface,
+                                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                                )
+                            )
+                        }
+                    ) { padding ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(padding)
+                        ) {
                         when (currentTab) {
+                            NavTab.TRANSACTIONS -> com.example.ui.screens.TransactionScreen(viewModel = viewModel)
                             NavTab.DASHBOARD -> DashboardScreen(
                                 viewModel = viewModel,
                                 onNavigateToTab = { destination ->
                                     when (destination) {
                                         "Assets" -> currentTab = NavTab.ASSETS
+                                        "Parties" -> currentTab = NavTab.PARTIES
                                         "Ledger" -> currentTab = NavTab.LEDGER
                                         "Reminders", "Reminder" -> currentTab = NavTab.REMINDERS
                                         "Analytics", "Analytic" -> currentTab = NavTab.ANALYTICS
@@ -245,6 +239,7 @@ fun MainAppContent(viewModel: NetWorthViewModel) {
                                     }
                                 }
                             )
+                            NavTab.PARTIES -> PartiesScreen(viewModel = viewModel)
                             NavTab.ASSETS -> AssetsListScreen(viewModel = viewModel)
                             NavTab.LEDGER -> LedgerScreen(viewModel = viewModel)
                             NavTab.ANALYTICS -> AnalyticsScreen(viewModel = viewModel)
@@ -262,6 +257,7 @@ fun MainAppContent(viewModel: NetWorthViewModel) {
                             )
                         }
                     }
+                }
                 }
             }
         }

@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.random.Random
 
 class NetWorthViewModel(application: Application) : AndroidViewModel(application) {
@@ -82,6 +83,62 @@ class NetWorthViewModel(application: Application) : AndroidViewModel(application
         SharingStarted.WhileSubscribed(5000),
         emptyList()
     )
+
+    private val prefs = application.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+
+    private val _customCategories = MutableStateFlow<List<String>>(emptyList())
+    val customCategories: StateFlow<List<String>> = _customCategories.asStateFlow()
+
+    init {
+        loadCustomCategories()
+    }
+
+    private fun loadCustomCategories() {
+        val cats = prefs.getStringSet("custom_categories", emptySet())?.toList()?.sorted() ?: emptyList()
+        _customCategories.value = cats
+    }
+
+    fun addCustomCategory(category: String) {
+        val current = prefs.getStringSet("custom_categories", emptySet()) ?: emptySet()
+        val newSet = current.toMutableSet().apply { add(category) }
+        prefs.edit().putStringSet("custom_categories", newSet).apply()
+        loadCustomCategories()
+    }
+
+    fun updateCustomCategory(oldCategory: String, newCategory: String) {
+        val current = prefs.getStringSet("custom_categories", emptySet()) ?: emptySet()
+        val newSet = current.toMutableSet().apply {
+            remove(oldCategory)
+            add(newCategory)
+        }
+        prefs.edit().putStringSet("custom_categories", newSet).apply()
+        
+        viewModelScope.launch(Dispatchers.IO) {
+            val items = database.financialItemDao().getAllItemsList()
+            val itemsToUpdate = items.filter { it.category == oldCategory }
+            itemsToUpdate.forEach { 
+                database.financialItemDao().updateItem(it.copy(category = newCategory)) 
+            }
+        }
+
+        loadCustomCategories()
+    }
+
+    fun deleteCustomCategory(category: String) {
+        val current = prefs.getStringSet("custom_categories", emptySet()) ?: emptySet()
+        val newSet = current.toMutableSet().apply { remove(category) }
+        prefs.edit().putStringSet("custom_categories", newSet).apply()
+        
+        viewModelScope.launch(Dispatchers.IO) {
+            val items = database.financialItemDao().getAllItemsList()
+            val itemsToUpdate = items.filter { it.category == category }
+            itemsToUpdate.forEach { 
+                database.financialItemDao().updateItem(it.copy(category = "Other Account")) 
+            }
+        }
+        
+        loadCustomCategories()
+    }
 
     val liveItems: StateFlow<List<FinancialItem>> = allItems
 
@@ -260,8 +317,11 @@ class NetWorthViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun clearAllData() {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             repository.clearAllData()
+            OfflineBackupManager.deleteOfflineBackup(getApplication())
+            offlineBackupSummary.value = null
+            recoveryBannerMessage.value = null
         }
     }
 
@@ -275,9 +335,55 @@ class NetWorthViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun importBackupJson(json: String, clearExisting: Boolean = false, onComplete: (Boolean) -> Unit) {
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.IO) {
             val result = repository.importFromJson(json, clearExisting)
             onComplete(result)
+        }
+    }
+
+    fun exportBackupToUri(uri: android.net.Uri, context: android.content.Context, onComplete: (Boolean, String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val json = exportBackupJson()
+                context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                    outputStream.write(json.toByteArray())
+                }
+                withContext(Dispatchers.Main) {
+                    onComplete(true, "Backup saved successfully")
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    onComplete(false, "Failed to save backup: ${e.message}")
+                }
+            }
+        }
+    }
+
+    fun importBackupFromUri(uri: android.net.Uri, context: android.content.Context, onComplete: (Boolean, String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val json = context.contentResolver.openInputStream(uri)?.use { inputStream ->
+                    inputStream.bufferedReader().use { it.readText() }
+                }
+                if (!json.isNullOrBlank()) {
+                    val result = repository.importFromJson(json, clearExisting = false)
+                    withContext(Dispatchers.Main) {
+                        if (result) {
+                            onComplete(true, "Backup restored successfully")
+                        } else {
+                            onComplete(false, "Failed to parse backup file")
+                        }
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        onComplete(false, "Selected file is empty")
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    onComplete(false, "Failed to read backup file: ${e.message}")
+                }
+            }
         }
     }
 
@@ -350,17 +456,8 @@ class NetWorthViewModel(application: Application) : AndroidViewModel(application
             val app = getApplication<Application>()
             val summary = OfflineBackupManager.getOfflineBackupSummary(app)
             offlineBackupSummary.value = summary
-
-            val count = repository.getItemCount()
-            if (count == 0 && summary != null && summary.itemCount > 0) {
-                val json = OfflineBackupManager.readOfflineBackup(app)
-                if (!json.isNullOrBlank()) {
-                    val restored = repository.importFromJson(json, clearExisting = false)
-                    if (restored) {
-                        recoveryBannerMessage.value = "Data Recovered! Restored ${summary.itemCount} accounts from your offline device storage."
-                    }
-                }
-            }
+            // Do NOT automatically inject or restore data on launch.
+            // The app starts completely clean with zero pre-added data.
         }
     }
 
@@ -414,6 +511,16 @@ class NetWorthViewModel(application: Application) : AndroidViewModel(application
             } else {
                 onComplete(false, "No offline backup file found on device storage")
             }
+        }
+    }
+
+    fun deleteOfflineBackup(onComplete: (Boolean, String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val app = getApplication<Application>()
+            val deleted = OfflineBackupManager.deleteOfflineBackup(app)
+            offlineBackupSummary.value = null
+            recoveryBannerMessage.value = null
+            onComplete(deleted, if (deleted) "Offline backup file deleted from device" else "No backup file found to delete")
         }
     }
 

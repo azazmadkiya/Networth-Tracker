@@ -73,7 +73,10 @@ enum class ItemCategory(
     OTHER_INVESTMENT("Other Investments (PF/FD/PPF)", false, "Savings"),
     INCOME("Income / Earnings", false, "TrendingUp"),
     EXPENSE("Expense / Outflow", true, "ShoppingCart"),
-    LOAN_LIABILITY("Loans & Dues", true, "CreditCard");
+    LOAN_LIABILITY("Loans & Dues", true, "CreditCard"),
+    SUNDRY_CREDITORS("Sundry Creditors", true, "MoneyOff"),
+    SUNDRY_DEBTORS("Sundry Debtors", false, "AttachMoney"),
+    OTHER_ACCOUNT("Other Account", false, "AccountBox");
 
     companion object {
         fun fromString(value: String): ItemCategory {

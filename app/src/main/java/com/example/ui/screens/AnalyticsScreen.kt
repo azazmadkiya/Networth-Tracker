@@ -76,6 +76,7 @@ fun AnalyticsScreen(
     val categorySummaries by viewModel.categorySummaries.collectAsState()
     val ownerSummaries by viewModel.ownerSummaries.collectAsState()
     val snapshots by viewModel.snapshots.collectAsState()
+    val allItems by viewModel.liveItems.collectAsState()
 
     if (showVoiceDialog) {
         VoiceAssistantDialog(
@@ -86,11 +87,15 @@ fun AnalyticsScreen(
     }
 
     if (showAddStockDialog) {
+        val parties = allItems
         AddEditItemDialog(
             preselectedCategory = ItemCategory.SHARE_MARKET.displayName,
+            parties = parties,
             onDismiss = { showAddStockDialog = false },
-            onSave = { stockItem ->
+            onSave = { stockItem, ledgerEntry, updatedParty ->
                 viewModel.saveFinancialItem(stockItem)
+                updatedParty?.let { viewModel.saveFinancialItem(it) }
+                ledgerEntry?.let { viewModel.postDirectLedgerEntry(it) }
                 showAddStockDialog = false
                 Toast.makeText(context, "Saved stock ${stockItem.title}", Toast.LENGTH_SHORT).show()
             }

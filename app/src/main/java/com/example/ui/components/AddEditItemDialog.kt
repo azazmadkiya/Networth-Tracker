@@ -29,6 +29,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import com.example.data.model.LedgerEntry
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,12 +51,14 @@ import com.example.ui.theme.AssetGreen
 import com.example.ui.theme.LiabilityRed
 import com.example.ui.theme.PrimaryGreen
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun AddEditItemDialog(
     initialItem: FinancialItem? = null,
     preselectedCategory: String? = null,
+    parties: List<FinancialItem> = emptyList(),
     onDismiss: () -> Unit,
-    onSave: (FinancialItem) -> Unit
+    onSave: (FinancialItem, com.example.data.model.LedgerEntry?, FinancialItem?) -> Unit
 ) {
     var title by remember { mutableStateOf(initialItem?.title ?: "") }
     var institution by remember { mutableStateOf(initialItem?.institution ?: "") }
@@ -65,11 +71,19 @@ fun AddEditItemDialog(
     var investedValueStr by remember { mutableStateOf(initialItem?.let { String.format("%.0f", it.investedValue) } ?: "") }
     var isLiability by remember { mutableStateOf(initialItem?.isLiability ?: false) }
     var notes by remember { mutableStateOf(initialItem?.notes ?: "") }
+    var oppositeAccountName by remember { mutableStateOf("") }
+    var oppositeExpanded by remember { mutableStateOf(false) }
 
     // Stock-specific quantity and purchase price helper states
     var stockQuantityStr by remember { mutableStateOf("") }
     var stockBuyPriceStr by remember { mutableStateOf("") }
     var stockCmpStr by remember { mutableStateOf("") }
+
+    
+    var selectedParty by remember { mutableStateOf<FinancialItem?>(null) }
+    var partyExpanded by remember { mutableStateOf(false) }
+    var adjustType by remember { mutableStateOf("Add to this Item") }
+    var adjustAmountStr by remember { mutableStateOf("") }
 
     val isEditing = initialItem != null
     val isInvestmentCategory = selectedCategory.equals(ItemCategory.SHARE_MARKET.displayName, ignoreCase = true) ||
@@ -364,6 +378,48 @@ fun AddEditItemDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
+                if (!isEditing && parties.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Opening Balance / Funding (ERP)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = PrimaryGreen)
+                    Text("Select an opposite account to automatically adjust its balance and record a ledger entry.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    ExposedDropdownMenuBox(
+                        expanded = oppositeExpanded,
+                        onExpandedChange = { oppositeExpanded = !oppositeExpanded },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = oppositeAccountName,
+                            onValueChange = { oppositeAccountName = it },
+                            label = { Text("Opposite Account / Funding Source") },
+                            placeholder = { Text("e.g. Bank, Cash (Optional)") },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = oppositeExpanded) },
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        
+                        val filteredOpposite = parties.filter { it.title.contains(oppositeAccountName, ignoreCase = true) }
+                        if (filteredOpposite.isNotEmpty()) {
+                            ExposedDropdownMenu(
+                                expanded = oppositeExpanded,
+                                onDismissRequest = { oppositeExpanded = false }
+                            ) {
+                                filteredOpposite.forEach { p ->
+                                    DropdownMenuItem(
+                                        text = { Text("${p.title} (₹${String.format("%.0f", p.currentValue)})") },
+                                        onClick = {
+                                            oppositeAccountName = p.title
+                                            oppositeExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                
+
                 // Actions
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -378,6 +434,36 @@ fun AddEditItemDialog(
                             val cVal = currentValueStr.toDoubleOrNull() ?: 0.0
                             val iVal = investedValueStr.toDoubleOrNull() ?: cVal
                             if (title.isNotBlank() && cVal >= 0) {
+                                var finalCVal = cVal
+                                var ledgerEntry: com.example.data.model.LedgerEntry? = null
+                                var updatedParty: FinancialItem? = null
+                                
+                                val oppAccount = parties.find { it.title.equals(oppositeAccountName, ignoreCase = true) }
+                                if (!isEditing && oppAccount != null && cVal > 0) {
+                                    // If creating a new item with an initial balance and an opposite account is selected
+                                    // e.g., creating a new Asset (cVal = 10k), opposite is Bank. Asset increases, Bank decreases.
+                                    val isIncreasingAsset = !isLiability
+                                    
+                                    val newOppBal = if (isIncreasingAsset) {
+                                        oppAccount.currentValue - cVal // Deduct from bank to buy asset
+                                    } else {
+                                        oppAccount.currentValue + cVal // Add to bank from loan
+                                    }
+                                    
+                                    updatedParty = oppAccount.copy(currentValue = newOppBal, updatedAt = System.currentTimeMillis())
+                                    
+                                    ledgerEntry = com.example.data.model.LedgerEntry(
+                                        transactionTitle = "Opening Balance: ${title.trim()}",
+                                        accountName = title.trim(),
+                                        oppositeAccountName = oppAccount.title,
+                                        entryType = if (isIncreasingAsset) "DEBIT" else "CREDIT",
+                                        debitAmount = if (isIncreasingAsset) cVal else 0.0,
+                                        creditAmount = if (!isIncreasingAsset) cVal else 0.0,
+                                        category = "Opening Balance",
+                                        timestamp = System.currentTimeMillis()
+                                    )
+                                }
+
                                 val item = FinancialItem(
                                     id = initialItem?.id ?: 0L,
                                     title = title.trim(),
@@ -385,13 +471,13 @@ fun AddEditItemDialog(
                                     accountNumber = accountNumber.trim(),
                                     owner = selectedOwner,
                                     category = selectedCategory,
-                                    currentValue = cVal,
+                                    currentValue = finalCVal,
                                     investedValue = iVal,
                                     isLiability = isLiability,
                                     notes = notes.trim(),
                                     updatedAt = System.currentTimeMillis()
                                 )
-                                onSave(item)
+                                onSave(item, ledgerEntry, updatedParty)
                             }
                         },
                         shape = RoundedCornerShape(12.dp),

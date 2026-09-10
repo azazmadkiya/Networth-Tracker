@@ -206,6 +206,64 @@ object OfflineBackupManager {
     }
 
     /**
+     * Deletes all offline backups from device storage and internal app storage.
+     */
+    fun deleteOfflineBackup(context: Context): Boolean {
+        var deletedAny = false
+        // 1. Delete MediaStore entries (Android 10+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                val resolver = context.contentResolver
+                val collection = MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                val projection = arrayOf(MediaStore.MediaColumns._ID)
+                val selection = "${MediaStore.MediaColumns.DISPLAY_NAME} = ?"
+                val selectionArgs = arrayOf(BACKUP_FILENAME)
+
+                resolver.query(collection, projection, selection, selectionArgs, null)?.use { cursor ->
+                    while (cursor.moveToNext()) {
+                        val id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID))
+                        val uri = ContentUris.withAppendedId(collection, id)
+                        val count = resolver.delete(uri, null, null)
+                        if (count > 0) deletedAny = true
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed deleting from MediaStore: ${e.message}")
+            }
+        }
+
+        // 2. Direct storage files
+        val candidateDirs = listOf(
+            File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), SUBFOLDER),
+            File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), SUBFOLDER),
+            File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), ""),
+            File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "")
+        )
+        for (dir in candidateDirs) {
+            try {
+                val file = File(dir, BACKUP_FILENAME)
+                if (file.exists() && file.delete()) {
+                    deletedAny = true
+                }
+            } catch (e: Exception) {
+                Log.d(TAG, "Failed deleting file in ${dir.path}: ${e.message}")
+            }
+        }
+
+        // 3. Internal app storage file
+        try {
+            val internalBackup = File(context.filesDir, BACKUP_FILENAME)
+            if (internalBackup.exists() && internalBackup.delete()) {
+                deletedAny = true
+            }
+        } catch (e: Exception) {
+            Log.d(TAG, "Failed deleting internal backup: ${e.message}")
+        }
+
+        return deletedAny
+    }
+
+    /**
      * Parses the summary of an offline backup without fully loading all records.
      */
     fun getOfflineBackupSummary(context: Context): OfflineBackupSummary? {

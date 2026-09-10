@@ -1,0 +1,1 @@
+sed -i 's/preselectedCategory: String? = null,/preselectedCategory: String? = null,\n    parties: List<FinancialItem> = emptyList(),/g' app/src/main/java/com/example/ui/components/AddEditItemDialog.kt

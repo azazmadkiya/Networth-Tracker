@@ -27,6 +27,11 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Switch
+import com.example.data.model.FinancialItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,19 +49,28 @@ import com.example.ui.theme.AssetGreen
 import com.example.ui.theme.LiabilityRed
 import com.example.ui.theme.PrimaryGreen
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun AddLedgerEntryDialog(
+    parties: List<FinancialItem> = emptyList(),
     onDismiss: () -> Unit,
-    onSave: (LedgerEntry) -> Unit,
-    onSaveAndShare: ((LedgerEntry) -> Unit)? = null
+    onSave: (LedgerEntry, List<FinancialItem>) -> Unit,
+    onSaveAndShare: ((LedgerEntry, List<FinancialItem>) -> Unit)? = null
 ) {
     var title by remember { mutableStateOf("") }
     var entryType by remember { mutableStateOf("DEBIT") } // DEBIT, CREDIT, TRANSFER
     var amountStr by remember { mutableStateOf("") }
-    var accountName by remember { mutableStateOf("HDFC Salary Account") }
+    var accountName by remember { mutableStateOf("") }
     var oppositeAccountName by remember { mutableStateOf("") }
+    var accountExpanded by remember { mutableStateOf(false) }
+    var oppositeExpanded by remember { mutableStateOf(false) }
     var category by remember { mutableStateOf(ItemCategory.EXPENSE.displayName) }
     var notes by remember { mutableStateOf("") }
+
+    
+    var selectedParty by remember { mutableStateOf<FinancialItem?>(null) }
+    var partyExpanded by remember { mutableStateOf(false) }
+    var adjustType by remember { mutableStateOf("Add to Party") }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -113,14 +127,43 @@ fun AddLedgerEntryDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                OutlinedTextField(
-                    value = title,
-                    onValueChange = { title = it },
-                    label = { Text("Description / Merchant *") },
-                    placeholder = { Text("e.g. Grocery shopping, Client payment") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
+                var titleExpanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = titleExpanded,
+                    onExpandedChange = { titleExpanded = !titleExpanded }
+                ) {
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { 
+                            title = it
+                            selectedParty = parties.find { p -> p.title.equals(it, ignoreCase = true) }
+                        },
+                        label = { Text("Party / Account Name *") },
+                        placeholder = { Text("Select or type name") },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = titleExpanded) },
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    
+                    val filteredParties = parties.filter { it.title.contains(title, ignoreCase = true) }
+                    if (filteredParties.isNotEmpty()) {
+                        ExposedDropdownMenu(
+                            expanded = titleExpanded,
+                            onDismissRequest = { titleExpanded = false }
+                        ) {
+                            filteredParties.forEach { p ->
+                                DropdownMenuItem(
+                                    text = { Text("${p.title} (₹${String.format("%.0f", p.currentValue)})") },
+                                    onClick = {
+                                        title = p.title
+                                        selectedParty = p
+                                        titleExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -136,21 +179,75 @@ fun AddLedgerEntryDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Row(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
-                        value = accountName,
-                        onValueChange = { accountName = it },
-                        label = { Text("From / Primary Account") },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
-                    )
+                    ExposedDropdownMenuBox(
+                        expanded = accountExpanded,
+                        onExpandedChange = { accountExpanded = !accountExpanded },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        OutlinedTextField(
+                            value = accountName,
+                            onValueChange = { accountName = it },
+                            label = { Text("Primary Account") },
+                            placeholder = { Text("Select") },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = accountExpanded) },
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        
+                        val filteredAccounts = parties.filter { it.title.contains(accountName, ignoreCase = true) }
+                        if (filteredAccounts.isNotEmpty()) {
+                            ExposedDropdownMenu(
+                                expanded = accountExpanded,
+                                onDismissRequest = { accountExpanded = false }
+                            ) {
+                                filteredAccounts.forEach { p ->
+                                    DropdownMenuItem(
+                                        text = { Text(p.title) },
+                                        onClick = {
+                                            accountName = p.title
+                                            accountExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    
                     Spacer(modifier = Modifier.width(8.dp))
-                    OutlinedTextField(
-                        value = oppositeAccountName,
-                        onValueChange = { oppositeAccountName = it },
-                        label = { Text(if (entryType == "TRANSFER") "To Account" else "Payee / Source") },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
-                    )
+                    
+                    ExposedDropdownMenuBox(
+                        expanded = oppositeExpanded,
+                        onExpandedChange = { oppositeExpanded = !oppositeExpanded },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        OutlinedTextField(
+                            value = oppositeAccountName,
+                            onValueChange = { oppositeAccountName = it },
+                            label = { Text(if (entryType == "TRANSFER") "To Account" else "Payee / Source") },
+                            placeholder = { Text("Select") },
+                            modifier = Modifier.fillMaxWidth().menuAnchor(),
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = oppositeExpanded) },
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        
+                        val filteredOpposite = parties.filter { it.title.contains(oppositeAccountName, ignoreCase = true) }
+                        if (filteredOpposite.isNotEmpty()) {
+                            ExposedDropdownMenu(
+                                expanded = oppositeExpanded,
+                                onDismissRequest = { oppositeExpanded = false }
+                            ) {
+                                filteredOpposite.forEach { p ->
+                                    DropdownMenuItem(
+                                        text = { Text(p.title) },
+                                        onClick = {
+                                            oppositeAccountName = p.title
+                                            oppositeExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -174,6 +271,32 @@ fun AddLedgerEntryDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                if (parties.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    if (selectedParty != null) {
+                        Text("Update Party Balance (ERP)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = PrimaryGreen)
+                        Text("How should this transaction affect ${selectedParty?.title}?", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                FilterChip(
+                                    selected = adjustType == "Add to Party",
+                                    onClick = { adjustType = "Add to Party" },
+                                    label = { Text("Add / Debit Party") }
+                                )
+                                FilterChip(
+                                    selected = adjustType == "Deduct from Party",
+                                    onClick = { adjustType = "Deduct from Party" },
+                                    label = { Text("Deduct / Credit Party") }
+                                )
+                            }
+                        }
+                    }
+                }
+                
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
@@ -205,7 +328,7 @@ fun AddLedgerEntryDialog(
                                         timestamp = System.currentTimeMillis(),
                                         transactionTitle = title.trim(),
                                         accountName = accountName.trim(),
-                                        oppositeAccountName = oppositeAccountName.trim(),
+                                        oppositeAccountName = if (selectedParty != null) selectedParty!!.title else oppositeAccountName.trim(),
                                         entryType = entryType,
                                         debitAmount = debit,
                                         creditAmount = credit,
@@ -213,7 +336,31 @@ fun AddLedgerEntryDialog(
                                         category = category,
                                         notes = notes.trim()
                                     )
-                                    onSaveAndShare(entry)
+                                    val itemsToUpdate = mutableListOf<FinancialItem>()
+                                    if (selectedParty != null) {
+                                        val isAdd = adjustType == "Add to Party"
+                                        val newBal = if (isAdd) selectedParty!!.currentValue + amt else selectedParty!!.currentValue - amt
+                                        itemsToUpdate.add(selectedParty!!.copy(currentValue = newBal, updatedAt = System.currentTimeMillis()))
+                                    }
+                                    
+                                    // Automatic ERP update for Primary and Opposite accounts
+                                    val primaryAccount = parties.find { it.title.equals(accountName, ignoreCase = true) }
+                                    if (primaryAccount != null && primaryAccount.id != selectedParty?.id) {
+                                        val newBal = if (entryType == "DEBIT" || entryType == "TRANSFER") primaryAccount.currentValue - amt else primaryAccount.currentValue + amt
+                                        itemsToUpdate.add(primaryAccount.copy(currentValue = newBal, updatedAt = System.currentTimeMillis()))
+                                    }
+                                    
+                                    val oppAccount = parties.find { it.title.equals(oppositeAccountName, ignoreCase = true) }
+                                    if (oppAccount != null && oppAccount.id != selectedParty?.id && oppAccount.id != primaryAccount?.id) {
+                                        val newBal = if (entryType == "TRANSFER") oppAccount.currentValue + amt else oppAccount.currentValue
+                                        // For DEBIT/CREDIT we leave opposite account update to selectedParty if they match, else we might not know if it adds or subtracts. 
+                                        // But if it's a Transfer, we always add to the To Account.
+                                        if (entryType == "TRANSFER") {
+                                            itemsToUpdate.add(oppAccount.copy(currentValue = newBal, updatedAt = System.currentTimeMillis()))
+                                        }
+                                    }
+                                    
+                                    onSaveAndShare(entry, itemsToUpdate)
                                 }
                             },
                             shape = RoundedCornerShape(12.dp),
@@ -235,7 +382,7 @@ fun AddLedgerEntryDialog(
                                     timestamp = System.currentTimeMillis(),
                                     transactionTitle = title.trim(),
                                     accountName = accountName.trim(),
-                                    oppositeAccountName = oppositeAccountName.trim(),
+                                    oppositeAccountName = if (selectedParty != null) selectedParty!!.title else oppositeAccountName.trim(),
                                     entryType = entryType,
                                     debitAmount = debit,
                                     creditAmount = credit,
@@ -243,7 +390,29 @@ fun AddLedgerEntryDialog(
                                     category = category,
                                     notes = notes.trim()
                                 )
-                                onSave(entry)
+                                val itemsToUpdate = mutableListOf<FinancialItem>()
+                                if (selectedParty != null) {
+                                    val isAdd = adjustType == "Add to Party"
+                                    val newBal = if (isAdd) selectedParty!!.currentValue + amt else selectedParty!!.currentValue - amt
+                                    itemsToUpdate.add(selectedParty!!.copy(currentValue = newBal, updatedAt = System.currentTimeMillis()))
+                                }
+                                
+                                // Automatic ERP update for Primary and Opposite accounts
+                                val primaryAccount = parties.find { it.title.equals(accountName, ignoreCase = true) }
+                                if (primaryAccount != null && primaryAccount.id != selectedParty?.id) {
+                                    val newBal = if (entryType == "DEBIT" || entryType == "TRANSFER") primaryAccount.currentValue - amt else primaryAccount.currentValue + amt
+                                    itemsToUpdate.add(primaryAccount.copy(currentValue = newBal, updatedAt = System.currentTimeMillis()))
+                                }
+                                
+                                val oppAccount = parties.find { it.title.equals(oppositeAccountName, ignoreCase = true) }
+                                if (oppAccount != null && oppAccount.id != selectedParty?.id && oppAccount.id != primaryAccount?.id) {
+                                    val newBal = if (entryType == "TRANSFER") oppAccount.currentValue + amt else oppAccount.currentValue
+                                    if (entryType == "TRANSFER") {
+                                        itemsToUpdate.add(oppAccount.copy(currentValue = newBal, updatedAt = System.currentTimeMillis()))
+                                    }
+                                }
+                                
+                                onSave(entry, itemsToUpdate)
                             }
                         },
                         shape = RoundedCornerShape(12.dp),
@@ -258,4 +427,3 @@ fun AddLedgerEntryDialog(
             }
         }
     }
-}

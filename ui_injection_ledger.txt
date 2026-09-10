@@ -1,0 +1,63 @@
+                if (parties.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Link with Party / Adjust Balance", style = MaterialTheme.typography.labelMedium)
+                        Switch(checked = enablePartyLink, onCheckedChange = { enablePartyLink = it })
+                    }
+                    
+                    if (enablePartyLink) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        ExposedDropdownMenuBox(
+                            expanded = partyExpanded,
+                            onExpandedChange = { partyExpanded = !partyExpanded }
+                        ) {
+                            OutlinedTextField(
+                                value = selectedParty?.title ?: "Select Party",
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Party Account") },
+                                modifier = Modifier.fillMaxWidth().menuAnchor(),
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = partyExpanded) },
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            ExposedDropdownMenu(
+                                expanded = partyExpanded,
+                                onDismissRequest = { partyExpanded = false }
+                            ) {
+                                parties.forEach { p ->
+                                    DropdownMenuItem(
+                                        text = { Text("${p.title} (₹${String.format("%.0f", p.currentValue)})") },
+                                        onClick = {
+                                            selectedParty = p
+                                            partyExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        
+                        if (selectedParty != null) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                FilterChip(
+                                    selected = adjustType == "Add to Party",
+                                    onClick = { adjustType = "Add to Party" },
+                                    label = { Text("Add / Debit Party") }
+                                )
+                                FilterChip(
+                                    selected = adjustType == "Deduct from Party",
+                                    onClick = { adjustType = "Deduct from Party" },
+                                    label = { Text("Deduct / Credit Party") }
+                                )
+                            }
+                        }
+                    }
+                }
+                

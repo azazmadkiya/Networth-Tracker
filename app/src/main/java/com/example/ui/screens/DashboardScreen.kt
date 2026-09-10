@@ -108,14 +108,18 @@ fun DashboardScreen(
     }
 
     if (showAddItemDialog || editingItem != null) {
+        val parties = filteredItems
         AddEditItemDialog(
             initialItem = editingItem,
+            parties = parties,
             onDismiss = {
                 showAddItemDialog = false
                 editingItem = null
             },
-            onSave = { item ->
+            onSave = { item, ledgerEntry, updatedParty ->
                 viewModel.saveFinancialItem(item)
+                updatedParty?.let { viewModel.saveFinancialItem(it) }
+                ledgerEntry?.let { viewModel.postDirectLedgerEntry(it) }
                 showAddItemDialog = false
                 editingItem = null
                 Toast.makeText(context, "Saved ${item.title}", Toast.LENGTH_SHORT).show()
