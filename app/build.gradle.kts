@@ -11,18 +11,37 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.aistudio.networthtracker.erpv4"
+        applicationId = "com.networth.tracker.azaz"
         minSdk = 24
         targetSdk = 36
-        versionCode = 8
-        versionName = "3.0.0"
+        versionCode = 11
+        versionName = "3.3.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        getByName("debug") {
+            val rootKeystore = rootProject.file("debug.keystore")
+            if (rootKeystore.exists()) {
+                storeFile = rootKeystore
+            }
+        }
+        create("release") {
+            val releaseKeystore = rootProject.file("release.keystore")
+            if (releaseKeystore.exists()) {
+                storeFile = releaseKeystore
+                storePassword = "android"
+                keyAlias = "release"
+                keyPassword = "android"
+            }
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
