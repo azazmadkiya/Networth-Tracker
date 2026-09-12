@@ -50,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.data.model.ItemCategory
 import com.example.data.model.NetWorthSnapshot
@@ -115,20 +116,29 @@ fun AnalyticsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Portfolio Analytics",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = "Diversification & wealth breakdown",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     IconButton(
                         onClick = { showVoiceDialog = true },
                         modifier = Modifier
@@ -143,19 +153,24 @@ fun AnalyticsScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(8.dp))
-
                     Button(
                         onClick = {
                             viewModel.recordSnapshot("Analytics Snapshot")
                             Toast.makeText(context, "Snapshot recorded!", Toast.LENGTH_SHORT).show()
                         },
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                     ) {
                         Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Snapshot")
+                        Text(
+                            text = "Snapshot",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            softWrap = false
+                        )
                     }
                 }
             }
@@ -163,7 +178,13 @@ fun AnalyticsScreen(
 
         // Net Worth Trend Canvas Chart
         item {
-            NetWorthTrendChart(snapshots = snapshots)
+            NetWorthTrendChart(
+                snapshots = snapshots,
+                onTakeSnapshot = {
+                    viewModel.recordSnapshot("Analytics Snapshot")
+                    Toast.makeText(context, "Snapshot recorded!", Toast.LENGTH_SHORT).show()
+                }
+            )
         }
 
         // Equity & Share Market Card
@@ -179,15 +200,22 @@ fun AnalyticsScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Icon(Icons.Default.ShowChart, contentDescription = null, tint = PrimaryGreen)
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "Stock Market Portfolio",
                                 style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
+
+                        Spacer(modifier = Modifier.width(8.dp))
 
                         OutlinedButton(
                             onClick = { showAddStockDialog = true },
@@ -196,7 +224,7 @@ fun AnalyticsScreen(
                         ) {
                             Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("+ Stock", style = MaterialTheme.typography.labelMedium)
+                            Text("Add Stock", style = MaterialTheme.typography.labelMedium, maxLines = 1, softWrap = false)
                         }
                     }
 

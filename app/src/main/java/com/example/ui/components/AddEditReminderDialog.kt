@@ -1,22 +1,28 @@
 package com.example.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Notifications
@@ -27,7 +33,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -38,15 +46,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.foundation.clickable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.data.model.EventReminderPresets
 import com.example.data.model.FinancialReminder
 import com.example.data.model.OwnerProfile
@@ -134,51 +144,84 @@ fun AddEditReminderDialog(
         }.show()
     }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    val safeDismiss = {
+        keyboardController?.hide()
+        focusManager.clearFocus()
+        onDismiss()
+    }
+
+    Dialog(
+        onDismissRequest = safeDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                .fillMaxSize()
+                .systemBarsPadding()
+                .imePadding()
+                .padding(horizontal = 16.dp, vertical = 20.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Column(
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
-                    .verticalScroll(rememberScrollState())
+                    .widthIn(max = 520.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
             ) {
-                // Header
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                Column(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column {
-                        Text(
-                            text = if (isEditing) {
-                                if (isEventMode) "Edit Event Reminder" else "Edit Reminder"
-                            } else {
-                                if (isEventMode) "Add Event Reminder" else "Add Financial Reminder"
-                            },
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = if (isEventMode) "Schedule tax dates, renewals, milestones & events" else "Track SIPs, bills, loan EMIs, and dues",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    // Fixed Header
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (isEditing) {
+                                    if (isEventMode) "Edit Event Reminder" else "Edit Reminder"
+                                } else {
+                                    if (isEventMode) "Add Event Reminder" else "Add Financial Reminder"
+                                },
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (isEventMode) "Schedule tax dates, renewals, milestones & events" else "Track SIPs, bills, loan EMIs, and dues",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(onClick = safeDismiss) {
+                            Icon(Icons.Default.Close, contentDescription = "Close")
+                        }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-                // Mode Selector Chips
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                    // Scrollable Form Body
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 20.dp, vertical = 14.dp)
+                    ) {
+                        // Mode Selector Chips
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                     FilterChip(
                         selected = !isEventMode,
                         onClick = {
@@ -428,52 +471,63 @@ fun AddEditReminderDialog(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Action Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text("Cancel")
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            val amt = amountStr.toDoubleOrNull() ?: 0.0
-                            val days = dueDaysFromNowStr.toLongOrNull() ?: 3L
-                            val dueDayEpoch = currentEpochDay + days
 
-                            val finalType = if (isEventMode) ReminderType.EVENT_REMINDER.name else selectedType
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
 
-                            if (title.isNotBlank()) {
-                                val reminder = FinancialReminder(
-                                    id = initialReminder?.id ?: 0L,
-                                    title = title.trim(),
-                                    amount = amt,
-                                    reminderType = finalType,
-                                    priority = selectedPriority,
-                                    dueDateEpochDay = dueDayEpoch,
-                                    frequency = selectedFrequency,
-                                    owner = OwnerProfile.SELF.displayName,
-                                    associatedAccount = associatedAccount.trim(),
-                                    notes = notes.trim(),
-                                    isCompleted = initialReminder?.isCompleted ?: false,
-                                    createdAt = initialReminder?.createdAt ?: System.currentTimeMillis()
-                                )
-                                onSave(reminder)
-                            }
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
-                        enabled = title.isNotBlank()
+                    // Fixed Action Buttons Footer (Always visible)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surface)
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            if (isEditing) {
-                                if (isEventMode) "Update Event" else "Update Reminder"
-                            } else {
-                                if (isEventMode) "Save Event Reminder" else "Save Reminder"
-                            }
-                        )
+                        TextButton(onClick = safeDismiss) {
+                            Text("Cancel")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                keyboardController?.hide()
+                                focusManager.clearFocus()
+                                val amt = amountStr.toDoubleOrNull() ?: 0.0
+                                val days = dueDaysFromNowStr.toLongOrNull() ?: 3L
+                                val dueDayEpoch = currentEpochDay + days
+
+                                val finalType = if (isEventMode) ReminderType.EVENT_REMINDER.name else selectedType
+
+                                if (title.isNotBlank()) {
+                                    val reminder = FinancialReminder(
+                                        id = initialReminder?.id ?: 0L,
+                                        title = title.trim(),
+                                        amount = amt,
+                                        reminderType = finalType,
+                                        priority = selectedPriority,
+                                        dueDateEpochDay = dueDayEpoch,
+                                        frequency = selectedFrequency,
+                                        owner = OwnerProfile.SELF.displayName,
+                                        associatedAccount = associatedAccount.trim(),
+                                        notes = notes.trim(),
+                                        isCompleted = initialReminder?.isCompleted ?: false,
+                                        createdAt = initialReminder?.createdAt ?: System.currentTimeMillis()
+                                    )
+                                    onSave(reminder)
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen),
+                            enabled = title.isNotBlank()
+                        ) {
+                            Text(
+                                if (isEditing) {
+                                    if (isEventMode) "Update Event" else "Update Reminder"
+                                } else {
+                                    if (isEventMode) "Save Event Reminder" else "Save Reminder"
+                                }
+                            )
+                        }
                     }
                 }
             }

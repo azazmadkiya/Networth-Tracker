@@ -47,6 +47,25 @@ data class LedgerEntry(
     val notes: String = ""
 )
 
+data class AccountAdjustment(
+    val item: FinancialItem,
+    val oldBalance: Double,
+    val newBalance: Double,
+    val change: Double,
+    val explanation: String
+)
+
+data class DeletionAdjustmentResult(
+    val entryId: Long,
+    val transactionTitle: String,
+    val adjustmentsApplied: List<AccountAdjustment>,
+    val netWorthBefore: Double,
+    val netWorthAfter: Double,
+    val netWorthDifference: Double,
+    val success: Boolean,
+    val message: String
+)
+
 @Entity(tableName = "assets")
 data class Asset(
     @PrimaryKey(autoGenerate = true)

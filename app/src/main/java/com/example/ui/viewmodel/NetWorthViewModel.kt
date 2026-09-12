@@ -1,16 +1,19 @@
 package com.example.ui.viewmodel
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.data.backup.OfflineBackupManager
+import com.example.data.backup.OfflineBackupSummary
 import com.example.data.db.AppDatabase
+import com.example.data.model.AccountAdjustment
+import com.example.data.model.DeletionAdjustmentResult
 import com.example.data.model.FinancialItem
 import com.example.data.model.FinancialReminder
 import com.example.data.model.ItemCategory
 import com.example.data.model.LedgerEntry
 import com.example.data.model.NetWorthSnapshot
-import com.example.data.backup.OfflineBackupManager
-import com.example.data.backup.OfflineBackupSummary
 import com.example.data.repository.NetWorthRepository
 import com.example.data.security.AuthManager
 import kotlinx.coroutines.Dispatchers
@@ -28,6 +31,7 @@ import kotlin.random.Random
 class NetWorthViewModel(application: Application) : AndroidViewModel(application) {
     private val database = AppDatabase.getInstance(application)
     val repository = NetWorthRepository(
+        database,
         database.financialItemDao(),
         database.snapshotDao(),
         database.ledgerDao(),
@@ -298,10 +302,46 @@ class NetWorthViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun deleteLedgerEntry(entry: LedgerEntry) {
-        viewModelScope.launch {
-            repository.deleteLedgerEntry(entry)
+    fun previewAdjustmentsForDeletion(entry: LedgerEntry): List<AccountAdjustment> {
+        return repository.calculateAdjustmentsForDeletion(entry, liveItems.value)
+    }
+
+    fun deleteLedgerEntry(
+        entry: LedgerEntry,
+        autoAdjustHoldings: Boolean = true,
+        onComplete: ((DeletionAdjustmentResult) -> Unit)? = null
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val result = repository.deleteLedgerEntryWithReverseAdjustment(entry, autoAdjustHoldings)
+                withContext(Dispatchers.Main) {
+                    onComplete?.invoke(result)
+                }
+            } catch (e: Exception) {
+                Log.e("NetWorthViewModel", "Transactional ledger deletion failed", e)
+                withContext(Dispatchers.Main) {
+                    onComplete?.invoke(
+                        DeletionAdjustmentResult(
+                            entryId = entry.id,
+                            transactionTitle = entry.transactionTitle,
+                            adjustmentsApplied = emptyList(),
+                            netWorthBefore = 0.0,
+                            netWorthAfter = 0.0,
+                            netWorthDifference = 0.0,
+                            success = false,
+                            message = "Deletion failed: ${e.localizedMessage ?: "Unknown error"}"
+                        )
+                    )
+                }
+            }
         }
+    }
+
+    fun calculateAdjustmentsForDeletion(
+        entry: LedgerEntry,
+        currentItems: List<FinancialItem>
+    ): List<AccountAdjustment> {
+        return repository.calculateAdjustmentsForDeletion(entry, currentItems)
     }
 
     fun recordSnapshot(note: String = "") {
@@ -337,7 +377,9 @@ class NetWorthViewModel(application: Application) : AndroidViewModel(application
     fun importBackupJson(json: String, clearExisting: Boolean = false, onComplete: (Boolean) -> Unit) {
         viewModelScope.launch(Dispatchers.IO) {
             val result = repository.importFromJson(json, clearExisting)
-            onComplete(result)
+            withContext(Dispatchers.Main) {
+                onComplete(result)
+            }
         }
     }
 
@@ -487,9 +529,13 @@ class NetWorthViewModel(application: Application) : AndroidViewModel(application
                 val success = OfflineBackupManager.saveOfflineBackup(getApplication(), json)
                 val summary = OfflineBackupManager.getOfflineBackupSummary(getApplication())
                 offlineBackupSummary.value = summary
-                onComplete(success, if (success) "Offline backup saved to device storage (Downloads/FamilyNetWorth)!" else "Failed to save offline backup")
+                withContext(Dispatchers.Main) {
+                    onComplete(success, if (success) "Offline backup saved to device storage (Downloads/FamilyNetWorth)!" else "Failed to save offline backup")
+                }
             } else {
-                onComplete(false, "No financial data available to backup")
+                withContext(Dispatchers.Main) {
+                    onComplete(false, "No financial data available to backup")
+                }
             }
         }
     }
@@ -504,12 +550,58 @@ class NetWorthViewModel(application: Application) : AndroidViewModel(application
                     val summary = OfflineBackupManager.getOfflineBackupSummary(app)
                     offlineBackupSummary.value = summary
                     recoveryBannerMessage.value = "Data recovered from device storage!"
-                    onComplete(true, "Successfully restored ${summary?.itemCount ?: 0} accounts!")
+                    withContext(Dispatchers.Main) {
+                        onComplete(true, "Successfully restored ${summary?.itemCount ?: 0} accounts!")
+                    }
                 } else {
-                    onComplete(false, "Failed to parse offline backup file")
+                    withContext(Dispatchers.Main) {
+                        onComplete(false, "Failed to parse offline backup file")
+                    }
                 }
             } else {
-                onComplete(false, "No offline backup file found on device storage")
+                withContext(Dispatchers.Main) {
+                    onComplete(false, "No offline backup file found on device storage")
+                }
+            }
+        }
+    }
+
+    fun triggerManualEncryptedOfflineBackup(onComplete: (Boolean, String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val json = exportBackupJson()
+            if (json.isNotBlank()) {
+                val success = com.example.data.backup.EncryptedBackupManager.saveEncryptedBackup(getApplication(), json)
+                withContext(Dispatchers.Main) {
+                    onComplete(success, if (success) "Encrypted backup saved to device storage!" else "Failed to save encrypted backup")
+                }
+            } else {
+                withContext(Dispatchers.Main) {
+                    onComplete(false, "No financial data available to backup")
+                }
+            }
+        }
+    }
+
+    fun restoreFromEncryptedOfflineBackup(onComplete: (Boolean, String) -> Unit) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val app = getApplication<Application>()
+            val json = com.example.data.backup.EncryptedBackupManager.readEncryptedBackup(app)
+            if (!json.isNullOrBlank()) {
+                val success = repository.importFromJson(json, clearExisting = false)
+                if (success) {
+                    recoveryBannerMessage.value = "Data recovered from encrypted device storage!"
+                    withContext(Dispatchers.Main) {
+                        onComplete(true, "Successfully restored accounts from encrypted backup!")
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        onComplete(false, "Failed to parse encrypted backup file")
+                    }
+                }
+            } else {
+                withContext(Dispatchers.Main) {
+                    onComplete(false, "No encrypted offline backup file found on device storage")
+                }
             }
         }
     }
@@ -520,7 +612,9 @@ class NetWorthViewModel(application: Application) : AndroidViewModel(application
             val deleted = OfflineBackupManager.deleteOfflineBackup(app)
             offlineBackupSummary.value = null
             recoveryBannerMessage.value = null
-            onComplete(deleted, if (deleted) "Offline backup file deleted from device" else "No backup file found to delete")
+            withContext(Dispatchers.Main) {
+                onComplete(deleted, if (deleted) "Offline backup file deleted from device" else "No backup file found to delete")
+            }
         }
     }
 

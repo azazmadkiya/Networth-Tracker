@@ -70,6 +70,7 @@ fun AssetsListScreen(
 ) {
     val context = LocalContext.current
     val items by viewModel.filteredItems.collectAsState()
+    val allItems by viewModel.liveItems.collectAsState()
     val selectedOwner by viewModel.selectedOwnerFilter.collectAsState()
     val selectedCategory by viewModel.selectedCategoryFilter.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
@@ -87,7 +88,7 @@ fun AssetsListScreen(
     }
 
     if (showAddDialog || editingItem != null) {
-        val parties = items
+        val parties = allItems
         AddEditItemDialog(
             initialItem = editingItem,
             parties = parties,

@@ -85,6 +85,7 @@ fun DashboardScreen(
     val summary by viewModel.summary.collectAsState()
     val snapshots by viewModel.snapshots.collectAsState()
     val filteredItems by viewModel.filteredItems.collectAsState()
+    val allItems by viewModel.liveItems.collectAsState()
     val reminders by viewModel.allReminders.collectAsState()
     val selectedOwner by viewModel.selectedOwnerFilter.collectAsState()
     val recoveryMessage by viewModel.recoveryBannerMessage.collectAsState()
@@ -108,7 +109,7 @@ fun DashboardScreen(
     }
 
     if (showAddItemDialog || editingItem != null) {
-        val parties = filteredItems
+        val parties = allItems
         AddEditItemDialog(
             initialItem = editingItem,
             parties = parties,
@@ -168,18 +169,22 @@ fun DashboardScreen(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Net Worth Portfolio",
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
                     )
                     Text(
                         text = "Real-time wealth tracking",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1
                     )
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     // Voice Assistant Launch Icon

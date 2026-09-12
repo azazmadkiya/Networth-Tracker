@@ -1,18 +1,26 @@
 package com.example.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -20,6 +28,9 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -29,11 +40,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.data.model.LedgerEntry
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -61,26 +76,77 @@ fun AddVoucherDialog(
     var referenceNumber by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
+    val canSave = partyName.isNotBlank() && (amountStr.toDoubleOrNull() ?: 0.0) > 0
+
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    val safeDismiss = {
+        keyboardController?.hide()
+        focusManager.clearFocus()
+        onDismiss()
+    }
+
+    Dialog(
+        onDismissRequest = safeDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                .fillMaxSize()
+                .systemBarsPadding()
+                .imePadding()
+                .padding(horizontal = 16.dp, vertical = 20.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Column(
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
-                    .verticalScroll(rememberScrollState())
+                    .widthIn(max = 520.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
             ) {
-                Text(
-                    text = "Add Voucher",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(16.dp))
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Fixed Header
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "Add Voucher",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (canSave) "Ready to save" else "Enter party & amount to save",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (canSave) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(onClick = safeDismiss) {
+                            Icon(Icons.Default.Close, contentDescription = "Close")
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    // Scrollable Form Body
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 20.dp, vertical = 14.dp)
+                    ) {
 
                 // Party Name
                 ExposedDropdownMenuBox(
@@ -214,40 +280,50 @@ fun AddVoucherDialog(
                     shape = RoundedCornerShape(12.dp),
                     minLines = 2
                 )
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text("Cancel")
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            val amount = amountStr.toDoubleOrNull() ?: 0.0
-                            if (partyName.isNotBlank() && amount > 0) {
-                                val isDebit = voucherType == "Payment" || voucherType == "Purchase"
-                                val finalNotes = if (referenceNumber.isNotBlank()) "Ref: $referenceNumber\n$notes" else notes
-                                val entry = LedgerEntry(
-                                    transactionTitle = "Voucher: $voucherType",
-                                    accountName = partyName,
-                                    oppositeAccountName = paymentMode,
-                                    entryType = if (isDebit) "DEBIT" else "CREDIT",
-                                    debitAmount = if (isDebit) amount else 0.0,
-                                    creditAmount = if (!isDebit) amount else 0.0,
-                                    category = "Voucher",
-                                    notes = finalNotes,
-                                    timestamp = System.currentTimeMillis() // In real app, parse dateStr
-                                )
-                                onSave(entry)
-                            }
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        enabled = partyName.isNotBlank() && amountStr.isNotBlank()
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    // Fixed Action Buttons Footer (Always visible)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surface)
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Save Voucher")
+                        TextButton(onClick = safeDismiss) {
+                            Text("Cancel")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                keyboardController?.hide()
+                                focusManager.clearFocus()
+                                val amount = amountStr.toDoubleOrNull() ?: 0.0
+                                if (partyName.isNotBlank() && amount > 0) {
+                                    val isDebit = voucherType == "Payment" || voucherType == "Purchase"
+                                    val finalNotes = if (referenceNumber.isNotBlank()) "Ref: $referenceNumber\n$notes" else notes
+                                    val entry = LedgerEntry(
+                                        transactionTitle = "Voucher: $voucherType",
+                                        accountName = partyName,
+                                        oppositeAccountName = paymentMode,
+                                        entryType = if (isDebit) "DEBIT" else "CREDIT",
+                                        debitAmount = if (isDebit) amount else 0.0,
+                                        creditAmount = if (!isDebit) amount else 0.0,
+                                        category = "Voucher",
+                                        notes = finalNotes,
+                                        timestamp = System.currentTimeMillis()
+                                    )
+                                    onSave(entry)
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            enabled = canSave
+                        ) {
+                            Text("Save Voucher")
+                        }
                     }
                 }
             }

@@ -72,6 +72,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -84,8 +85,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.example.data.notification.NotificationHelper
 import com.example.data.security.BiometricAuthHelper
 import com.example.data.security.BiometricStatus
@@ -219,10 +223,18 @@ fun SettingsScreen(
         )
     }
 
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+
     // Password Dialog
     if (showPasswordDialog) {
         AlertDialog(
-            onDismissRequest = { showPasswordDialog = false },
+            onDismissRequest = {
+                keyboardController?.hide()
+                focusManager.clearFocus()
+                showPasswordDialog = false
+            },
+            properties = DialogProperties(decorFitsSystemWindows = false),
             title = { Text("Change Password") },
             text = {
                 OutlinedTextField(
@@ -236,6 +248,8 @@ fun SettingsScreen(
             confirmButton = {
                 Button(
                     onClick = {
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
                         if (newPassword.isNotBlank()) {
                             viewModel.authManager.updatePassword(newPassword.trim())
                             Toast.makeText(context, "Password updated", Toast.LENGTH_SHORT).show()
@@ -248,7 +262,11 @@ fun SettingsScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showPasswordDialog = false }) {
+                TextButton(onClick = {
+                    keyboardController?.hide()
+                    focusManager.clearFocus()
+                    showPasswordDialog = false
+                }) {
                     Text("Cancel")
                 }
             }
@@ -258,7 +276,12 @@ fun SettingsScreen(
     // Import Dialog
     if (showImportDialog) {
         AlertDialog(
-            onDismissRequest = { showImportDialog = false },
+            onDismissRequest = {
+                keyboardController?.hide()
+                focusManager.clearFocus()
+                showImportDialog = false
+            },
+            properties = DialogProperties(decorFitsSystemWindows = false),
             title = { Text("Import JSON Backup") },
             text = {
                 Column {
@@ -277,6 +300,8 @@ fun SettingsScreen(
             confirmButton = {
                 Button(
                     onClick = {
+                        keyboardController?.hide()
+                        focusManager.clearFocus()
                         if (importJsonText.isNotBlank()) {
                             viewModel.importBackupJson(importJsonText) { success ->
                                 if (success) {
@@ -294,7 +319,11 @@ fun SettingsScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showImportDialog = false }) {
+                TextButton(onClick = {
+                    keyboardController?.hide()
+                    focusManager.clearFocus()
+                    showImportDialog = false
+                }) {
                     Text("Cancel")
                 }
             }
@@ -930,6 +959,56 @@ fun SettingsScreen(
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.SemiBold
                                 )
+                            }
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+                        
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Lock,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Encrypted Local Backup",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Export your Room database state to a local encrypted file, providing a robust safety net for your financial data.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.triggerManualEncryptedOfflineBackup { success, msg ->
+                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Save Encrypted", style = MaterialTheme.typography.labelSmall)
+                            }
+                            Button(
+                                onClick = {
+                                    viewModel.restoreFromEncryptedOfflineBackup { success, msg ->
+                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Restore Encrypted", style = MaterialTheme.typography.labelSmall)
                             }
                         }
                     }

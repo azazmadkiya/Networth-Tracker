@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,9 +18,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
@@ -27,8 +31,12 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,6 +44,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -71,6 +80,217 @@ fun LedgerScreen(
     var showAddVoucherDialog by remember { mutableStateOf(false) }
     var entryToShare by remember { mutableStateOf<LedgerEntry?>(null) }
     var showSummaryShareDialog by remember { mutableStateOf(false) }
+    var entryToDelete by remember { mutableStateOf<LedgerEntry?>(null) }
+
+    if (entryToDelete != null) {
+        val targetEntry = entryToDelete!!
+        val adjustments = remember(targetEntry, items) {
+            viewModel.previewAdjustmentsForDeletion(targetEntry)
+        }
+        var autoAdjustHoldings by remember { mutableStateOf(true) }
+
+        AlertDialog(
+            onDismissRequest = { entryToDelete = null },
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = null,
+                    tint = LiabilityRed,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = "Delete Ledger Entry?",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Are you sure you want to delete this transaction from Financial Ledger?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // Transaction preview card
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = targetEntry.transactionTitle,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            val isCredit = targetEntry.entryType == "CREDIT"
+                            val amt = if (isCredit) targetEntry.creditAmount else targetEntry.debitAmount
+                            Text(
+                                text = "${if (isCredit) "+" else "-"}${NumberFormatUtils.formatCurrency(amt)} (${targetEntry.entryType})",
+                                color = if (isCredit) AssetGreen else LiabilityRed,
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.titleSmall
+                            )
+                            if (targetEntry.accountName.isNotBlank()) {
+                                Text(
+                                    text = "Account: ${targetEntry.accountName}${if (targetEntry.oppositeAccountName.isNotBlank()) " ➔ ${targetEntry.oppositeAccountName}" else ""}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    // Key Portfolio Holdings Auto-Adjustment Section
+                    if (adjustments.isNotEmpty()) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = PrimaryGreen.copy(alpha = 0.08f)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.AccountBalanceWallet,
+                                        contentDescription = null,
+                                        tint = PrimaryGreen,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = "Key Portfolio Holdings Auto-Adjustment",
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = PrimaryGreen
+                                    )
+                                }
+                                Text(
+                                    text = "Amounts in Key Portfolio Holdings will auto-adjust as follows:",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+
+                                adjustments.forEach { adj ->
+                                    val isPlus = adj.change > 0
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .background(
+                                                MaterialTheme.colorScheme.surface,
+                                                RoundedCornerShape(8.dp)
+                                            )
+                                            .padding(10.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = adj.item.title,
+                                                fontWeight = FontWeight.Bold,
+                                                style = MaterialTheme.typography.bodyMedium
+                                            )
+                                            Text(
+                                                text = "${if (isPlus) "+" else ""}${NumberFormatUtils.formatCurrency(adj.change)}",
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isPlus) AssetGreen else LiabilityRed,
+                                                style = MaterialTheme.typography.bodyMedium
+                                            )
+                                        }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = adj.item.category,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                            Text(
+                                                text = "₹${String.format("%,.0f", adj.oldBalance)} ➔ ₹${String.format("%,.0f", adj.newBalance)}",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                        }
+                                        Text(
+                                            text = adj.explanation,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                                        )
+                                    }
+                                }
+
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { autoAdjustHoldings = !autoAdjustHoldings }
+                                        .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Checkbox(
+                                        checked = autoAdjustHoldings,
+                                        onCheckedChange = { autoAdjustHoldings = it }
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Auto-adjust account amount in Portfolio Holdings",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = "ℹ️ No matching accounts found in Portfolio Holdings for auto-adjustment.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val toDelete = targetEntry
+                        entryToDelete = null
+                        viewModel.deleteLedgerEntry(toDelete, autoAdjustHoldings = autoAdjustHoldings) { result ->
+                            if (!result.success) {
+                                Toast.makeText(context, result.message, Toast.LENGTH_LONG).show()
+                            } else if (autoAdjustHoldings && result.adjustmentsApplied.isNotEmpty()) {
+                                val summary = result.adjustmentsApplied.joinToString { "${it.item.title} (₹${String.format("%,.0f", it.newBalance)})" }
+                                Toast.makeText(context, "Deleted & Portfolio updated: $summary", Toast.LENGTH_LONG).show()
+                            } else {
+                                Toast.makeText(context, "Deleted transaction from ledger", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = LiabilityRed)
+                ) {
+                    Text(if (autoAdjustHoldings && adjustments.isNotEmpty()) "Delete & Auto Adjust" else "Delete Entry")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { entryToDelete = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
 
     if (showVoiceDialog) {
         VoiceAssistantDialog(
@@ -320,8 +540,7 @@ fun LedgerScreen(
                             entry = entry,
                             onShare = { entryToShare = entry },
                             onDelete = {
-                                viewModel.deleteLedgerEntry(entry)
-                                Toast.makeText(context, "Deleted transaction", Toast.LENGTH_SHORT).show()
+                                entryToDelete = entry
                             }
                         )
                     }

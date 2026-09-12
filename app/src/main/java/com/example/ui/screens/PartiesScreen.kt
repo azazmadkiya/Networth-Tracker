@@ -15,9 +15,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -28,6 +31,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Mic
@@ -40,6 +44,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -58,10 +63,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.data.model.FinancialItem
 import com.example.data.model.ItemCategory
 import com.example.data.model.OwnerProfile
@@ -336,134 +344,198 @@ fun AddPartyDialog(
     var openingBalanceStr by remember { mutableStateOf(initialItem?.let { String.format("%.0f", it.currentValue) } ?: "") }
     var accountType by remember { mutableStateOf(initialItem?.category ?: ItemCategory.BANK_ACCOUNT.displayName) }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    val safeDismiss = {
+        keyboardController?.hide()
+        focusManager.clearFocus()
+        onDismiss()
+    }
+
+    Dialog(
+        onDismissRequest = safeDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                .fillMaxSize()
+                .systemBarsPadding()
+                .imePadding()
+                .padding(horizontal = 16.dp, vertical = 20.dp),
+            contentAlignment = Alignment.Center
         ) {
-            Column(
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
-                    .verticalScroll(rememberScrollState())
+                    .widthIn(max = 520.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
             ) {
-                Text(
-                    text = if (initialItem != null) "Edit Party" else "Add Party",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedTextField(
-                    value = partyName,
-                    onValueChange = { partyName = it },
-                    label = { Text("Party Name *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = mobileNumber,
-                    onValueChange = { mobileNumber = it },
-                    label = { Text("Mobile Number") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = gstin,
-                    onValueChange = { gstin = it },
-                    label = { Text("GSTIN (Optional)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = openingBalanceStr,
-                    onValueChange = { openingBalanceStr = it },
-                    label = { Text("Opening Balance (₹) *") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Account Type", style = MaterialTheme.typography.labelMedium)
-                    TextButton(onClick = onManageCategories) {
-                        Text("Manage")
-                    }
-                }
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    partyCategories.forEach { cat ->
-                        FilterChip(
-                            selected = accountType == cat,
-                            onClick = { accountType = cat },
-                            label = { Text(cat) }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text("Cancel")
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Button(
-                        onClick = {
-                            val bal = openingBalanceStr.toDoubleOrNull() ?: 0.0
-                            if (partyName.isNotBlank()) {
-                                val isLiab = accountType == ItemCategory.SUNDRY_CREDITORS.displayName || 
-                                             accountType == ItemCategory.EXPENSE.displayName || 
-                                             accountType == ItemCategory.LOAN_LIABILITY.displayName
-                                             
-                                val item = FinancialItem(
-                                    id = initialItem?.id ?: 0L,
-                                    title = partyName.trim(),
-                                    institution = mobileNumber.trim(),
-                                    accountNumber = gstin.trim(),
-                                    owner = initialItem?.owner ?: OwnerProfile.SELF.displayName,
-                                    category = accountType,
-                                    currentValue = bal,
-                                    investedValue = bal,
-                                    isLiability = isLiab,
-                                    notes = initialItem?.notes ?: "",
-                                    updatedAt = System.currentTimeMillis()
-                                )
-                                onSave(item)
-                            }
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        enabled = partyName.isNotBlank()
+                    // Fixed Header
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(if (initialItem != null) "Update Party" else "Save Party")
+                        Column {
+                            Text(
+                                text = if (initialItem != null) "Edit Party" else "Add Party",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = if (partyName.isNotBlank()) "Ready to save" else "Enter party name to save",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (partyName.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        IconButton(onClick = safeDismiss) {
+                            Icon(Icons.Default.Close, contentDescription = "Close")
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    // Scrollable Form Body
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 20.dp, vertical = 14.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = partyName,
+                            onValueChange = { partyName = it },
+                            label = { Text("Party Name *") },
+                            placeholder = { Text("e.g. Acme Corp / Rahul Sharma") },
+                            supportingText = if (partyName.isBlank()) {
+                                { Text("Party name is required", color = MaterialTheme.colorScheme.error) }
+                            } else null,
+                            isError = partyName.isBlank(),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        OutlinedTextField(
+                            value = mobileNumber,
+                            onValueChange = { mobileNumber = it },
+                            label = { Text("Mobile Number") },
+                            placeholder = { Text("e.g. 9876543210") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        OutlinedTextField(
+                            value = gstin,
+                            onValueChange = { gstin = it },
+                            label = { Text("GSTIN (Optional)") },
+                            placeholder = { Text("e.g. 27AAAAA0000A1Z5") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        OutlinedTextField(
+                            value = openingBalanceStr,
+                            onValueChange = { openingBalanceStr = it },
+                            label = { Text("Opening Balance (₹) *") },
+                            placeholder = { Text("0.00") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Account Type", style = MaterialTheme.typography.labelMedium)
+                            TextButton(onClick = onManageCategories) {
+                                Text("Manage")
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            partyCategories.forEach { cat ->
+                                FilterChip(
+                                    selected = accountType == cat,
+                                    onClick = { accountType = cat },
+                                    label = { Text(cat) }
+                                )
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    // Fixed Action Buttons Footer (Always visible)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surface)
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(onClick = safeDismiss) {
+                            Text("Cancel")
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                keyboardController?.hide()
+                                focusManager.clearFocus()
+                                val bal = openingBalanceStr.toDoubleOrNull() ?: 0.0
+                                if (partyName.isNotBlank()) {
+                                    val isLiab = accountType == ItemCategory.SUNDRY_CREDITORS.displayName || 
+                                                 accountType == ItemCategory.EXPENSE.displayName || 
+                                                 accountType == ItemCategory.LOAN_LIABILITY.displayName
+                                                 
+                                    val item = FinancialItem(
+                                        id = initialItem?.id ?: 0L,
+                                        title = partyName.trim(),
+                                        institution = mobileNumber.trim(),
+                                        accountNumber = gstin.trim(),
+                                        owner = initialItem?.owner ?: OwnerProfile.SELF.displayName,
+                                        category = accountType,
+                                        currentValue = bal,
+                                        investedValue = bal,
+                                        isLiability = isLiab,
+                                        notes = initialItem?.notes ?: "",
+                                        updatedAt = System.currentTimeMillis()
+                                    )
+                                    onSave(item)
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            enabled = partyName.isNotBlank()
+                        ) {
+                            Text(if (initialItem != null) "Update Party" else "Save Party")
+                        }
                     }
                 }
             }
@@ -479,82 +551,140 @@ fun ManageCategoriesDialog(
     val customCategories by viewModel.customCategories.collectAsState()
     var newCategory by remember { mutableStateOf("") }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(24.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text("Manage Account Types", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(12.dp))
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
+    val safeDismiss = {
+        keyboardController?.hide()
+        focusManager.clearFocus()
+        onDismiss()
+    }
 
-                LazyColumn(modifier = Modifier.heightIn(max = 250.dp)) {
-                    items(customCategories) { cat ->
-                        var isEditing by remember { mutableStateOf(false) }
-                        var editValue by remember { mutableStateOf(cat) }
-                        
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                            if (isEditing) {
-                                OutlinedTextField(
-                                    value = editValue,
-                                    onValueChange = { editValue = it },
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                IconButton(onClick = { 
-                                    if(editValue.isNotBlank()) {
-                                        viewModel.updateCustomCategory(cat, editValue)
+    Dialog(
+        onDismissRequest = safeDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .systemBarsPadding()
+                .imePadding()
+                .padding(horizontal = 16.dp, vertical = 20.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 520.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Fixed Header
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 20.dp, end = 12.dp, top = 16.dp, bottom = 12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Manage Account Types", 
+                            style = MaterialTheme.typography.titleMedium, 
+                            fontWeight = FontWeight.Bold
+                        )
+                        IconButton(onClick = safeDismiss) {
+                            Icon(Icons.Default.Close, contentDescription = "Close")
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 20.dp, vertical = 14.dp)
+                    ) {
+                        LazyColumn(modifier = Modifier.heightIn(max = 220.dp)) {
+                            items(customCategories) { cat ->
+                                var isEditing by remember { mutableStateOf(false) }
+                                var editValue by remember { mutableStateOf(cat) }
+                                
+                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                    if (isEditing) {
+                                        OutlinedTextField(
+                                            value = editValue,
+                                            onValueChange = { editValue = it },
+                                            modifier = Modifier.weight(1f),
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
+                                        IconButton(onClick = { 
+                                            if(editValue.isNotBlank()) {
+                                                viewModel.updateCustomCategory(cat, editValue)
+                                            }
+                                            isEditing = false 
+                                        }) { Icon(Icons.Default.Check, contentDescription = "Save", tint = PrimaryGreen) }
+                                    } else {
+                                        Text(cat, modifier = Modifier.weight(1f))
+                                        IconButton(onClick = { isEditing = true }) { 
+                                            Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(20.dp)) 
+                                        }
+                                        IconButton(onClick = { viewModel.deleteCustomCategory(cat) }) { 
+                                            Icon(Icons.Default.Delete, contentDescription = "Delete", tint = LiabilityRed, modifier = Modifier.size(20.dp)) 
+                                        }
                                     }
-                                    isEditing = false 
-                                }) { Icon(Icons.Default.Check, contentDescription = "Save", tint = PrimaryGreen) }
-                            } else {
-                                Text(cat, modifier = Modifier.weight(1f))
-                                IconButton(onClick = { isEditing = true }) { 
-                                    Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(20.dp)) 
-                                }
-                                IconButton(onClick = { viewModel.deleteCustomCategory(cat) }) { 
-                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = LiabilityRed, modifier = Modifier.size(20.dp)) 
                                 }
                             }
                         }
-                    }
-                }
 
-                if (customCategories.isEmpty()) {
-                    Text("No custom types added yet.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedTextField(
-                        value = newCategory,
-                        onValueChange = { newCategory = it },
-                        label = { Text("New Account Type") },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    IconButton(onClick = { 
-                        if(newCategory.isNotBlank()) {
-                            viewModel.addCustomCategory(newCategory)
-                            newCategory = ""
+                        if (customCategories.isEmpty()) {
+                            Text("No custom types added yet.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                    }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add", tint = PrimaryGreen)
-                    }
-                }
 
-                Spacer(modifier = Modifier.height(24.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    Button(
-                        onClick = onDismiss, 
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            OutlinedTextField(
+                                value = newCategory,
+                                onValueChange = { newCategory = it },
+                                label = { Text("New Account Type") },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            IconButton(onClick = { 
+                                if(newCategory.isNotBlank()) {
+                                    viewModel.addCustomCategory(newCategory)
+                                    newCategory = ""
+                                }
+                            }) {
+                                Icon(Icons.Default.Add, contentDescription = "Add", tint = PrimaryGreen)
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surface)
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.End
                     ) {
-                        Text("Close")
+                        Button(
+                            onClick = safeDismiss, 
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryGreen)
+                        ) {
+                            Text("Close")
+                        }
                     }
                 }
             }
